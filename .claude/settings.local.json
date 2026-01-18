@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xcode-select:*)",
+      "Bash(git init:*)"
+    ]
+  }
+}
