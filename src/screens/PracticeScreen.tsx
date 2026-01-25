@@ -21,9 +21,11 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 
 import { useSessionTimer } from '../hooks/useSessionTimer';
+import { useUserPreferences } from '../context/AppContext';
 import { evaluateAnswer, ClaudeApiError } from '../services/claudeApi';
 import {
   getDueCards,
+  getDueCardsWithPriority,
   getQuestionById,
   addReviewRecord,
   updateCardSchedule,
@@ -64,6 +66,7 @@ interface Props {
 
 export default function PracticeScreen({ navigation, route }: Props) {
   const { sessionId } = route.params;
+  const userPreferences = useUserPreferences();
 
   // State
   const [practiceState, setPracticeState] = useState<PracticeState>({
@@ -94,7 +97,11 @@ export default function PracticeScreen({ navigation, route }: Props) {
   const loadNextQuestion = useCallback(async () => {
     setPracticeState({ status: 'loading' });
     try {
-      const dueCards = await getDueCards();
+      // Use prioritized cards if user has preferences, otherwise use default
+      const dueCards = userPreferences
+        ? await getDueCardsWithPriority(userPreferences)
+        : await getDueCards();
+
       if (dueCards.length === 0) {
         setPracticeState({ status: 'no_cards' });
         return;
@@ -116,7 +123,7 @@ export default function PracticeScreen({ navigation, route }: Props) {
         retryable: true,
       });
     }
-  }, [timer]);
+  }, [timer, userPreferences]);
 
   // Initial load
   useEffect(() => {

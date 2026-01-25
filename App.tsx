@@ -9,7 +9,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { AppProvider, useApp } from './src/context/AppContext';
 import { theme } from './src/constants/theme';
-import { RootTabParamList, HomeStackParamList, QuestionsStackParamList } from './src/types';
+import { RootTabParamList, HomeStackParamList, QuestionsStackParamList, OnboardingStackParamList } from './src/types';
 
 // Screens
 import HomeScreen from './src/screens/HomeScreen';
@@ -20,11 +20,14 @@ import QuestionBankScreen from './src/screens/QuestionBankScreen';
 import QuestionDetailScreen from './src/screens/QuestionDetailScreen';
 import GenerateQuestionsScreen from './src/screens/GenerateQuestionsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import OnboardingChatScreen from './src/screens/OnboardingChatScreen';
+import PreferencesReviewScreen from './src/screens/PreferencesReviewScreen';
 
 // Create navigators
 const Tab = createBottomTabNavigator<RootTabParamList>();
 const HomeStack = createNativeStackNavigator<HomeStackParamList>();
 const QuestionsStack = createNativeStackNavigator<QuestionsStackParamList>();
+const OnboardingStack = createNativeStackNavigator<OnboardingStackParamList>();
 
 // Home Stack Navigator
 function HomeStackNavigator() {
@@ -75,6 +78,24 @@ function QuestionsStackNavigator() {
         options={{ title: 'Generate Questions' }}
       />
     </QuestionsStack.Navigator>
+  );
+}
+
+// Onboarding Navigator
+function OnboardingNavigator() {
+  return (
+    <OnboardingStack.Navigator>
+      <OnboardingStack.Screen
+        name="OnboardingChat"
+        component={OnboardingChatScreen}
+        options={{ title: 'Welcome' }}
+      />
+      <OnboardingStack.Screen
+        name="PreferencesReview"
+        component={PreferencesReviewScreen}
+        options={{ title: 'Review Preferences' }}
+      />
+    </OnboardingStack.Navigator>
   );
 }
 
@@ -151,6 +172,15 @@ function AppContent() {
 
   if (!state.isInitialized) {
     return <LoadingScreen />;
+  }
+
+  // Show onboarding if not completed
+  if (!state.hasCompletedOnboarding) {
+    return (
+      <NavigationContainer>
+        <OnboardingNavigator />
+      </NavigationContainer>
+    );
   }
 
   return (

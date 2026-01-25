@@ -10,6 +10,31 @@ export type Category =
 
 export type Difficulty = 'beginner' | 'intermediate' | 'advanced';
 
+// Onboarding types
+export type ExperienceLevel = 'student' | 'entry' | 'mid' | 'senior' | 'career-change';
+export type LearningTimeline = '1-month' | '3-months' | '6-months' | 'ongoing';
+
+export interface UserPreferences {
+  experienceLevel: ExperienceLevel | null;
+  currentRole: string | null;
+  technicalBackground: string | null;
+  preferredCategories: Category[];  // Ordered by priority
+  preferredDifficulties: Record<Category, Difficulty>;
+  onboardingCompletedAt: string | null;
+  updatedAt: string;
+}
+
+export interface OnboardingMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface OnboardingSuggestion {
+  reasoning: string;
+  suggestedCategories: Category[];
+  suggestedDifficulties: Record<Category, Difficulty>;
+}
+
 // Core data models
 export interface Question {
   id: string;
@@ -133,6 +158,12 @@ export type QuestionsStackParamList = {
   AddCustomQuestion: undefined;
 };
 
+// Onboarding navigation types
+export type OnboardingStackParamList = {
+  OnboardingChat: undefined;
+  PreferencesReview: { suggestions: OnboardingSuggestion };
+};
+
 // Practice screen state machine
 export type ProcessingStep = 'transcribing' | 'evaluating';
 
@@ -153,10 +184,14 @@ export interface AppState {
   hasWhisperApiKey: boolean;
   isInitialized: boolean;
   currentSessionId: string | null;
+  hasCompletedOnboarding: boolean;
+  userPreferences: UserPreferences | null;
 }
 
 export type AppAction =
   | { type: 'SET_ONLINE'; payload: boolean }
   | { type: 'SET_API_KEYS'; payload: { claude: boolean; whisper: boolean } }
   | { type: 'SET_INITIALIZED' }
-  | { type: 'SET_SESSION'; payload: string | null };
+  | { type: 'SET_SESSION'; payload: string | null }
+  | { type: 'SET_ONBOARDING_COMPLETE'; payload: { completed: boolean; preferences: UserPreferences | null } }
+  | { type: 'UPDATE_PREFERENCES'; payload: UserPreferences };

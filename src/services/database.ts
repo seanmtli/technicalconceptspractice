@@ -9,11 +9,14 @@ import {
   PracticeSession,
   CategoryStats,
   Category,
+  Difficulty,
+  UserPreferences,
+  OnboardingMessage,
 } from '../types';
 import { SEED_QUESTIONS } from '../data/seedQuestions';
 
 const DATABASE_NAME = 'datapractice.db';
-const CURRENT_SCHEMA_VERSION = 1;
+const CURRENT_SCHEMA_VERSION = 2;
 
 let db: SQLite.SQLiteDatabase | null = null;
 
@@ -138,6 +141,26 @@ async function createTables(database: SQLite.SQLiteDatabase): Promise<void> {
     INSERT OR IGNORE INTO user_stats (id, total_reviews, current_streak, longest_streak)
     VALUES (1, 0, 0, 0)
   `);
+
+  // Create user_preferences table
+  await database.execAsync(`
+    CREATE TABLE IF NOT EXISTS user_preferences (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      experience_level TEXT CHECK (experience_level IN ('student', 'entry', 'mid', 'senior', 'career-change')),
+      current_role TEXT,
+      technical_background TEXT,
+      preferred_categories TEXT NOT NULL DEFAULT '[]',
+      preferred_difficulties TEXT NOT NULL DEFAULT '{}',
+      onboarding_completed_at TEXT,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS onboarding_conversations (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      messages TEXT NOT NULL DEFAULT '[]',
+      updated_at TEXT NOT NULL
+    );
+  `);
 }
 
 // Run database migrations
@@ -145,11 +168,27 @@ async function runMigrations(
   database: SQLite.SQLiteDatabase,
   fromVersion: number
 ): Promise<void> {
-  // Add migrations here as schema evolves
-  // Example:
-  // if (fromVersion < 2) {
-  //   await database.execAsync('ALTER TABLE questions ADD COLUMN new_field TEXT');
-  // }
+  // Migration from version 1 to 2: Add user_preferences and onboarding_conversations tables
+  if (fromVersion < 2) {
+    await database.execAsync(`
+      CREATE TABLE IF NOT EXISTS user_preferences (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        experience_level TEXT CHECK (experience_level IN ('student', 'entry', 'mid', 'senior', 'career-change')),
+        current_role TEXT,
+        technical_background TEXT,
+        preferred_categories TEXT NOT NULL DEFAULT '[]',
+        preferred_difficulties TEXT NOT NULL DEFAULT '{}',
+        onboarding_completed_at TEXT,
+        updated_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS onboarding_conversations (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        messages TEXT NOT NULL DEFAULT '[]',
+        updated_at TEXT NOT NULL
+      );
+    `);
+  }
 
   await database.runAsync(
     'UPDATE schema_version SET version = ?',
@@ -602,6 +641,178 @@ export async function getAverageScoreThisWeek(): Promise<number> {
   return result?.avg ? Math.round(result.avg * 10) / 10 : 0;
 }
 
+// ============ User Preferences Operations ============
+
+const DEFAULT_DIFFICULTIES: Record<Category, Difficulty> = {
+  'statistics': 'intermediate',
+  'machine-learning': 'intermediate',
+  'python-pandas': 'intermediate',
+  'sql': 'intermediate',
+  'ab-testing': 'intermediate',
+  'visualization': 'intermediate',
+  'feature-engineering': 'intermediate',
+};
+
+const ALL_CATEGORIES: Category[] = [
+  'statistics',
+  'machine-learning',
+  'python-pandas',
+  'sql',
+  'ab-testing',
+  'visualization',
+  'feature-engineering',
+];
+
+export async function getUserPreferences(): Promise<UserPreferences | null> {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<any>('SELECT * FROM user_preferences WHERE id = 1');
+
+  if (!row) {
+    return null;
+  }
+
+  return {
+    experienceLevel: row.experience_level,
+    currentRole: row.current_role,
+    technicalBackground: row.technical_background,
+    preferredCategories: JSON.parse(row.preferred_categories || '[]'),
+    preferredDifficulties: JSON.parse(row.preferred_difficulties || '{}'),
+    onboardingCompletedAt: row.onboarding_completed_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export async function saveUserPreferences(preferences: UserPreferences): Promise<void> {
+  const db = await getDatabase();
+  const now = new Date().toISOString();
+
+  await db.runAsync(
+    `INSERT INTO user_preferences (id, experience_level, current_role, technical_background, preferred_categories, preferred_difficulties, onboarding_completed_at, updated_at)
+     VALUES (1, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       experience_level = excluded.experience_level,
+       current_role = excluded.current_role,
+       technical_background = excluded.technical_background,
+       preferred_categories = excluded.preferred_categories,
+       preferred_difficulties = excluded.preferred_difficulties,
+       onboarding_completed_at = excluded.onboarding_completed_at,
+       updated_at = excluded.updated_at`,
+    preferences.experienceLevel,
+    preferences.currentRole,
+    preferences.technicalBackground,
+    JSON.stringify(preferences.preferredCategories),
+    JSON.stringify(preferences.preferredDifficulties),
+    preferences.onboardingCompletedAt,
+    now
+  );
+}
+
+export async function hasCompletedOnboarding(): Promise<boolean> {
+  const prefs = await getUserPreferences();
+  return prefs?.onboardingCompletedAt !== null && prefs?.onboardingCompletedAt !== undefined;
+}
+
+export async function clearOnboardingCompletion(): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(
+    'UPDATE user_preferences SET onboarding_completed_at = NULL, updated_at = ? WHERE id = 1',
+    new Date().toISOString()
+  );
+}
+
+export function getDefaultPreferences(): UserPreferences {
+  return {
+    experienceLevel: null,
+    currentRole: null,
+    technicalBackground: null,
+    preferredCategories: ALL_CATEGORIES,
+    preferredDifficulties: DEFAULT_DIFFICULTIES,
+    onboardingCompletedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+// ============ Onboarding Conversation Operations ============
+
+export async function getOnboardingConversation(): Promise<OnboardingMessage[]> {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<any>('SELECT messages FROM onboarding_conversations WHERE id = 1');
+
+  if (!row) {
+    return [];
+  }
+
+  return JSON.parse(row.messages || '[]');
+}
+
+export async function saveOnboardingConversation(messages: OnboardingMessage[]): Promise<void> {
+  const db = await getDatabase();
+  const now = new Date().toISOString();
+
+  await db.runAsync(
+    `INSERT INTO onboarding_conversations (id, messages, updated_at)
+     VALUES (1, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       messages = excluded.messages,
+       updated_at = excluded.updated_at`,
+    JSON.stringify(messages),
+    now
+  );
+}
+
+export async function clearOnboardingConversation(): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync('DELETE FROM onboarding_conversations WHERE id = 1');
+}
+
+// ============ Prioritized Card Selection ============
+
+export async function getDueCardsWithPriority(
+  preferences: UserPreferences
+): Promise<CardSchedule[]> {
+  const db = await getDatabase();
+  const now = new Date().toISOString();
+
+  // Get all due cards with their category
+  const rows = await db.getAllAsync<any>(
+    `SELECT cs.*, q.category FROM card_schedules cs
+     JOIN questions q ON cs.question_id = q.id
+     WHERE cs.next_review_date <= ?
+     ORDER BY cs.next_review_date ASC`,
+    now
+  );
+
+  const dueCards = rows.map((row) => ({
+    schedule: mapRowToCardSchedule(row),
+    category: row.category as Category,
+  }));
+
+  // Sort: preferred categories first (by priority order), then by next_review_date
+  const preferredSet = new Set(preferences.preferredCategories);
+  const priorityMap = new Map(
+    preferences.preferredCategories.map((cat, idx) => [cat, idx])
+  );
+
+  dueCards.sort((a, b) => {
+    const aPreferred = preferredSet.has(a.category);
+    const bPreferred = preferredSet.has(b.category);
+
+    if (aPreferred && !bPreferred) return -1;
+    if (!aPreferred && bPreferred) return 1;
+
+    if (aPreferred && bPreferred) {
+      const aPriority = priorityMap.get(a.category) ?? Infinity;
+      const bPriority = priorityMap.get(b.category) ?? Infinity;
+      if (aPriority !== bPriority) return aPriority - bPriority;
+    }
+
+    // Fall back to next_review_date
+    return a.schedule.nextReviewDate.localeCompare(b.schedule.nextReviewDate);
+  });
+
+  return dueCards.map((item) => item.schedule);
+}
+
 // ============ Reset Operations ============
 
 export async function resetAllProgress(): Promise<void> {
@@ -627,6 +838,9 @@ export async function resetAllProgress(): Promise<void> {
     'UPDATE card_schedules SET next_review_date = ?, ease_factor = 2.5, interval = 0, repetitions = 0',
     now
   );
+
+  // Clear onboarding conversation (but keep preferences)
+  await db.runAsync('DELETE FROM onboarding_conversations');
 }
 
 export async function deleteCustomQuestions(): Promise<void> {

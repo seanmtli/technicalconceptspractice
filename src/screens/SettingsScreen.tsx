@@ -22,11 +22,16 @@ import {
   maskApiKey,
 } from '../services/storage';
 import { testConnection, resetClient } from '../services/claudeApi';
-import { resetAllProgress, getQuestionCount } from '../services/database';
+import {
+  resetAllProgress,
+  getQuestionCount,
+  clearOnboardingCompletion,
+  clearOnboardingConversation,
+} from '../services/database';
 import { SPACING } from '../constants/theme';
 
 export default function SettingsScreen() {
-  const { state, refreshApiKeyStatus } = useApp();
+  const { state, refreshApiKeyStatus, dispatch } = useApp();
 
   // Claude API Key
   const [claudeKey, setClaudeKey] = useState('');
@@ -179,6 +184,31 @@ export default function SettingsScreen() {
     );
   };
 
+  // Update learning preferences
+  const handleUpdatePreferences = () => {
+    Alert.alert(
+      'Update Learning Preferences',
+      'This will restart the onboarding conversation to update your topic preferences. Your practice progress will be preserved.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Continue',
+          onPress: async () => {
+            // Clear onboarding completion and conversation
+            await clearOnboardingCompletion();
+            await clearOnboardingConversation();
+
+            // Update app state to trigger onboarding
+            dispatch({
+              type: 'SET_ONBOARDING_COMPLETE',
+              payload: { completed: false, preferences: null },
+            });
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* Claude API Key */}
@@ -308,6 +338,25 @@ export default function SettingsScreen() {
           >
             Get API key from OpenAI
           </Button>
+        </Card.Content>
+      </Card>
+
+      {/* Learning Preferences */}
+      <Card style={styles.card}>
+        <Card.Content>
+          <View style={styles.sectionHeader}>
+            <MaterialCommunityIcons name="school" size={24} color="#9C27B0" />
+            <Text variant="titleLarge" style={styles.sectionTitle}>
+              Learning Preferences
+            </Text>
+          </View>
+
+          <List.Item
+            title="Update Learning Preferences"
+            description="Restart onboarding to update topic priorities"
+            left={(props) => <List.Icon {...props} icon="tune" />}
+            onPress={handleUpdatePreferences}
+          />
         </Card.Content>
       </Card>
 

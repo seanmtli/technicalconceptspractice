@@ -8,8 +8,8 @@ import React, {
 } from 'react';
 import NetInfo from '@react-native-community/netinfo';
 import { getApiKey, getWhisperApiKey } from '../services/storage';
-import { getDatabase } from '../services/database';
-import { AppState, AppAction } from '../types';
+import { getDatabase, getUserPreferences, hasCompletedOnboarding } from '../services/database';
+import { AppState, AppAction, UserPreferences } from '../types';
 
 // ============ Initial State ============
 
@@ -19,6 +19,8 @@ const initialState: AppState = {
   hasWhisperApiKey: false,
   isInitialized: false,
   currentSessionId: null,
+  hasCompletedOnboarding: false,
+  userPreferences: null,
 };
 
 // ============ Reducer ============
@@ -37,6 +39,17 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, isInitialized: true };
     case 'SET_SESSION':
       return { ...state, currentSessionId: action.payload };
+    case 'SET_ONBOARDING_COMPLETE':
+      return {
+        ...state,
+        hasCompletedOnboarding: action.payload.completed,
+        userPreferences: action.payload.preferences,
+      };
+    case 'UPDATE_PREFERENCES':
+      return {
+        ...state,
+        userPreferences: action.payload,
+      };
     default:
       return state;
   }
@@ -48,6 +61,7 @@ interface AppContextValue {
   state: AppState;
   dispatch: React.Dispatch<AppAction>;
   refreshApiKeyStatus: () => Promise<void>;
+  refreshOnboardingState: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -84,6 +98,20 @@ export function AppProvider({ children }: AppProviderProps) {
     });
   }, []);
 
+  // Load onboarding state
+  const loadOnboardingState = useCallback(async () => {
+    try {
+      const completed = await hasCompletedOnboarding();
+      const preferences = await getUserPreferences();
+      dispatch({
+        type: 'SET_ONBOARDING_COMPLETE',
+        payload: { completed, preferences },
+      });
+    } catch (error) {
+      console.error('Failed to load onboarding state:', error);
+    }
+  }, []);
+
   // Initialize app
   useEffect(() => {
     async function initialize() {
@@ -93,6 +121,9 @@ export function AppProvider({ children }: AppProviderProps) {
 
         // Check API keys
         await refreshApiKeyStatus();
+
+        // Load onboarding state
+        await loadOnboardingState();
 
         // Mark as initialized
         dispatch({ type: 'SET_INITIALIZED' });
@@ -104,10 +135,10 @@ export function AppProvider({ children }: AppProviderProps) {
     }
 
     initialize();
-  }, [refreshApiKeyStatus]);
+  }, [refreshApiKeyStatus, loadOnboardingState]);
 
   return (
-    <AppContext.Provider value={{ state, dispatch, refreshApiKeyStatus }}>
+    <AppContext.Provider value={{ state, dispatch, refreshApiKeyStatus, refreshOnboardingState: loadOnboardingState }}>
       {children}
     </AppContext.Provider>
   );
@@ -147,4 +178,14 @@ export function useCanPractice(): { canPractice: boolean; reason: string | null 
   }
 
   return { canPractice: true, reason: null };
+}
+
+export function useUserPreferences(): UserPreferences | null {
+  const { state } = useApp();
+  return state.userPreferences;
+}
+
+export function useHasCompletedOnboarding(): boolean {
+  const { state } = useApp();
+  return state.hasCompletedOnboarding;
 }
