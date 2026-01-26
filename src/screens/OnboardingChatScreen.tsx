@@ -46,22 +46,32 @@ interface Props {
 }
 
 export default function OnboardingChatScreen({ navigation }: Props) {
-  const { dispatch, refreshApiKeyStatus } = useApp();
+  const { state, dispatch, refreshApiKeyStatus } = useApp();
   const [messages, setMessages] = useState<OnboardingMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [needsApiKey, setNeedsApiKey] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
   // Load existing conversation or start new one
   useEffect(() => {
     loadOrStartConversation();
-  }, []);
+  }, [state.hasClaudeApiKey]);
 
   const loadOrStartConversation = async () => {
     setIsLoading(true);
     setError(null);
+    setNeedsApiKey(false);
+
+    // Check if API key is configured
+    if (!state.hasClaudeApiKey) {
+      setNeedsApiKey(true);
+      setIsLoading(false);
+      return;
+    }
+
     try {
       // Check for existing conversation
       const existingMessages = await getOnboardingConversation();
@@ -81,7 +91,11 @@ export default function OnboardingChatScreen({ navigation }: Props) {
       }
     } catch (err: any) {
       if (err instanceof OnboardingApiError && !err.retryable) {
-        setError(err.message);
+        if (err.message.includes('API key')) {
+          setNeedsApiKey(true);
+        } else {
+          setError(err.message);
+        }
       } else {
         setError('Failed to start conversation. Please try again.');
       }
@@ -202,6 +216,34 @@ export default function OnboardingChatScreen({ navigation }: Props) {
     );
   }
 
+  if (needsApiKey) {
+    return (
+      <View style={styles.apiKeyContainer}>
+        <Surface style={styles.apiKeyCard} elevation={2}>
+          <Text variant="headlineSmall" style={styles.apiKeyTitle}>
+            API Key Required
+          </Text>
+          <Text style={styles.apiKeyText}>
+            To personalize your learning experience, this app uses Claude AI. Please configure your API key to continue with the guided setup.
+          </Text>
+          <Text style={styles.apiKeyText}>
+            Alternatively, you can skip and use default settings.
+          </Text>
+          <Button
+            mode="contained"
+            onPress={handleSkip}
+            style={styles.apiKeyButton}
+          >
+            Skip & Use Defaults
+          </Button>
+          <Text variant="bodySmall" style={styles.apiKeyHint}>
+            You can add your API key in Settings later to unlock the full onboarding experience.
+          </Text>
+        </Surface>
+      </View>
+    );
+  }
+
   if (error && messages.length === 0) {
     return (
       <View style={styles.errorContainer}>
@@ -299,6 +341,40 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: SPACING.md,
     color: '#666',
+  },
+  apiKeyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.lg,
+    backgroundColor: '#f5f5f5',
+  },
+  apiKeyCard: {
+    padding: SPACING.lg,
+    borderRadius: 16,
+    backgroundColor: '#fff',
+    maxWidth: 400,
+    width: '100%',
+  },
+  apiKeyTitle: {
+    textAlign: 'center',
+    marginBottom: SPACING.md,
+    color: '#333',
+  },
+  apiKeyText: {
+    textAlign: 'center',
+    color: '#666',
+    marginBottom: SPACING.md,
+    lineHeight: 22,
+  },
+  apiKeyButton: {
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  apiKeyHint: {
+    textAlign: 'center',
+    color: '#999',
+    fontStyle: 'italic',
   },
   errorContainer: {
     flex: 1,
