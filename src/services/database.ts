@@ -18,7 +18,7 @@ import { TECHNICALLY_DEV_QUESTIONS } from '../data/technicallyDevQuestions';
 import { TECHNICAL_DEFINITIONS } from '../data/technicalDefinitions';
 
 const DATABASE_NAME = 'datapractice.db';
-const CURRENT_SCHEMA_VERSION = 4;
+const CURRENT_SCHEMA_VERSION = 5;
 
 // All valid categories for CHECK constraint
 const VALID_CATEGORIES = [
@@ -82,12 +82,12 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
 
 // Create all tables
 async function createTables(database: SQLite.SQLiteDatabase): Promise<void> {
-  const categoryCheck = `category IN ('${VALID_CATEGORIES.join("', '")}')`;
+  // Note: Category validation is done in application code to allow easy addition of new categories
   await database.execAsync(`
     CREATE TABLE IF NOT EXISTS questions (
       id TEXT PRIMARY KEY,
       prompt TEXT NOT NULL,
-      category TEXT NOT NULL CHECK (${categoryCheck}),
+      category TEXT NOT NULL,
       difficulty TEXT NOT NULL CHECK (difficulty IN ('beginner', 'intermediate', 'advanced')),
       key_concepts TEXT NOT NULL,
       is_custom INTEGER DEFAULT 0 CHECK (is_custom IN (0, 1)),
@@ -232,8 +232,35 @@ async function runMigrations(
     await seedNewCategoryQuestions(database);
   }
 
-  // Migration from version 3 to 4: Add technical definitions
-  if (fromVersion < 4) {
+  // Migration to version 5: Remove category CHECK constraint and add technical definitions
+  if (fromVersion < 5) {
+    // Recreate questions table without category CHECK constraint
+    // This allows adding new categories without schema changes
+    await database.execAsync(`
+      -- Create new table without CHECK constraint on category
+      CREATE TABLE IF NOT EXISTS questions_new (
+        id TEXT PRIMARY KEY,
+        prompt TEXT NOT NULL,
+        category TEXT NOT NULL,
+        difficulty TEXT NOT NULL CHECK (difficulty IN ('beginner', 'intermediate', 'advanced')),
+        key_concepts TEXT NOT NULL,
+        is_custom INTEGER DEFAULT 0 CHECK (is_custom IN (0, 1)),
+        created_at TEXT NOT NULL,
+        source_references TEXT
+      );
+
+      -- Copy existing data
+      INSERT INTO questions_new SELECT * FROM questions;
+
+      -- Drop old table and rename new one
+      DROP TABLE questions;
+      ALTER TABLE questions_new RENAME TO questions;
+
+      -- Recreate indexes
+      CREATE INDEX IF NOT EXISTS idx_questions_category ON questions(category);
+      CREATE INDEX IF NOT EXISTS idx_questions_difficulty ON questions(difficulty);
+    `);
+
     await seedTechnicalDefinitions(database);
   }
 
@@ -349,6 +376,15 @@ async function seedNewCategoryQuestions(database: SQLite.SQLiteDatabase): Promis
 
 // Seed technical definitions for migration
 async function seedTechnicalDefinitions(database: SQLite.SQLiteDatabase): Promise<void> {
+  // Check if technical definitions already exist (check for fundamentals or devops category)
+  const existing = await database.getFirstAsync<{ count: number }>(
+    "SELECT COUNT(*) as count FROM questions WHERE category IN ('fundamentals', 'devops')"
+  );
+  if (existing && existing.count > 0) {
+    console.log('Technical definitions already seeded, skipping...');
+    return;
+  }
+
   const now = new Date().toISOString();
 
   for (const q of TECHNICAL_DEFINITIONS) {
