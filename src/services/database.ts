@@ -212,10 +212,16 @@ async function runMigrations(
 
   // Migration from version 2 to 3: Add source_references column and new categories
   if (fromVersion < 3) {
-    // Add source_references column to questions table
-    await database.execAsync(`
-      ALTER TABLE questions ADD COLUMN source_references TEXT;
-    `);
+    // Add source_references column to questions table (if not exists)
+    const tableInfo = await database.getAllAsync<{ name: string }>(
+      "PRAGMA table_info(questions)"
+    );
+    const hasSourceReferences = tableInfo.some(col => col.name === 'source_references');
+    if (!hasSourceReferences) {
+      await database.execAsync(`
+        ALTER TABLE questions ADD COLUMN source_references TEXT;
+      `);
+    }
 
     // Note: SQLite doesn't support modifying CHECK constraints directly.
     // The new categories will work because SQLite CHECK constraints are

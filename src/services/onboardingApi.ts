@@ -1,4 +1,3 @@
-import Anthropic from '@anthropic-ai/sdk';
 import Constants from 'expo-constants';
 import { OnboardingMessage, OnboardingSuggestion, Category, Difficulty } from '../types';
 
@@ -6,6 +5,7 @@ import { OnboardingMessage, OnboardingSuggestion, Category, Difficulty } from '.
 const OPENROUTER_API_KEY = Constants.expoConfig?.extra?.openRouterApiKey ?? '';
 
 const API_CONFIG = {
+  baseUrl: 'https://openrouter.ai/api/v1/chat/completions',
   model: 'minimax/minimax-m2-her',
   maxTokens: 1024,
 };
@@ -84,24 +84,46 @@ Guidelines:
   - Career changers: depends on their technical background
 - Be thoughtful about which topics match their stated goals`;
 
-// ============ Client Management ============
+// ============ API Helper ============
 
-// OpenRouter client with Anthropic SDK compatibility
-const client = new Anthropic({
-  baseURL: 'https://openrouter.ai/api',
-  apiKey: OPENROUTER_API_KEY,
-  defaultHeaders: {
-    'HTTP-Referer': 'https://datapractice.app',
-    'X-Title': 'Data Practice App',
-  },
-});
+interface ChatMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
 
-function getClient(): Anthropic {
-  return client;
+async function callOpenRouter(messages: ChatMessage[]): Promise<string> {
+  const response = await fetch(API_CONFIG.baseUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+      'HTTP-Referer': 'https://datapractice.app',
+      'X-Title': 'Data Practice App',
+    },
+    body: JSON.stringify({
+      model: API_CONFIG.model,
+      max_tokens: API_CONFIG.maxTokens,
+      messages,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    if (response.status === 429) {
+      throw new OnboardingApiError('Rate limit exceeded. Please wait a moment.', true);
+    }
+    if (response.status === 401) {
+      throw new OnboardingApiError('Authentication failed. Please check API key.', false);
+    }
+    throw new OnboardingApiError(`API error: ${error.error?.message || response.statusText}`, true);
+  }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content ?? '';
 }
 
 export function resetOnboardingClient(): void {
-  // No-op: client is now statically configured
+  // No-op: using fetch directly
 }
 
 // ============ Main Functions ============
@@ -110,99 +132,43 @@ export async function continueOnboardingConversation(
   history: OnboardingMessage[],
   userMessage: string
 ): Promise<string> {
-  const anthropic = getClient();
+  // Build messages array with system prompt and history
+  const messages: ChatMessage[] = [
+    { role: 'system', content: ONBOARDING_SYSTEM_PROMPT },
+    ...history.map((msg) => ({
+      role: msg.role as 'user' | 'assistant',
+      content: msg.content,
+    })),
+    { role: 'user', content: userMessage },
+  ];
 
-  // Build messages array with history
-  const messages: Anthropic.MessageParam[] = history.map((msg) => ({
-    role: msg.role,
-    content: msg.content,
-  }));
-
-  // Add the new user message
-  messages.push({
-    role: 'user',
-    content: userMessage,
-  });
-
-  try {
-    const response = await anthropic.messages.create({
-      model: API_CONFIG.model,
-      max_tokens: API_CONFIG.maxTokens,
-      system: ONBOARDING_SYSTEM_PROMPT,
-      messages,
-    });
-
-    const text =
-      response.content[0].type === 'text' ? response.content[0].text : '';
-
-    return text;
-  } catch (error: any) {
-    if (error.status === 429) {
-      throw new OnboardingApiError('Rate limit exceeded. Please wait a moment.', true);
-    }
-    if (error.status === 401) {
-      throw new OnboardingApiError('Authentication failed. Please contact support.', false);
-    }
-    throw new OnboardingApiError(`API error: ${error.message}`, true);
-  }
+  return callOpenRouter(messages);
 }
 
 export async function getInitialGreeting(): Promise<string> {
-  const anthropic = getClient();
+  const messages: ChatMessage[] = [
+    { role: 'system', content: ONBOARDING_SYSTEM_PROMPT },
+    { role: 'user', content: 'Hi, I just installed the app and want to set up my learning preferences.' },
+  ];
 
-  try {
-    const response = await anthropic.messages.create({
-      model: API_CONFIG.model,
-      max_tokens: API_CONFIG.maxTokens,
-      system: ONBOARDING_SYSTEM_PROMPT,
-      messages: [
-        {
-          role: 'user',
-          content: 'Hi, I just installed the app and want to set up my learning preferences.',
-        },
-      ],
-    });
-
-    const text =
-      response.content[0].type === 'text' ? response.content[0].text : '';
-
-    return text;
-  } catch (error: any) {
-    if (error.status === 429) {
-      throw new OnboardingApiError('Rate limit exceeded. Please wait a moment.', true);
-    }
-    if (error.status === 401) {
-      throw new OnboardingApiError('Authentication failed. Please contact support.', false);
-    }
-    throw new OnboardingApiError(`API error: ${error.message}`, true);
-  }
+  return callOpenRouter(messages);
 }
 
 export async function extractPreferencesFromConversation(
   history: OnboardingMessage[]
 ): Promise<OnboardingSuggestion> {
-  const anthropic = getClient();
-
   // Format conversation for extraction
   const conversationText = history
     .map((msg) => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
     .join('\n\n');
 
   try {
-    const response = await anthropic.messages.create({
-      model: API_CONFIG.model,
-      max_tokens: API_CONFIG.maxTokens,
-      system: EXTRACTION_SYSTEM_PROMPT,
-      messages: [
-        {
-          role: 'user',
-          content: `Based on this onboarding conversation, extract the user's learning preferences:\n\n${conversationText}`,
-        },
-      ],
-    });
+    const messages: ChatMessage[] = [
+      { role: 'system', content: EXTRACTION_SYSTEM_PROMPT },
+      { role: 'user', content: `Based on this onboarding conversation, extract the user's learning preferences:\n\n${conversationText}` },
+    ];
 
-    const text =
-      response.content[0].type === 'text' ? response.content[0].text : '';
+    const text = await callOpenRouter(messages);
 
     // Parse JSON response
     let cleaned = text.trim();
@@ -243,6 +209,12 @@ export async function extractPreferencesFromConversation(
         ? difficulty
         : 'intermediate';
     }
+    // Add new categories with defaults
+    suggestedDifficulties['llm-fundamentals'] = 'intermediate';
+    suggestedDifficulties['ml-infrastructure'] = 'intermediate';
+    suggestedDifficulties['data-platforms'] = 'intermediate';
+    suggestedDifficulties['fundamentals'] = 'beginner';
+    suggestedDifficulties['devops'] = 'intermediate';
 
     return {
       reasoning: parsed.reasoning || 'Based on your background, here are my suggestions.',
