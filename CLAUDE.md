@@ -2,7 +2,7 @@
 
 ## Git Workflow
 
-**Always commit changes after completing a feature or significant change.**
+**Always commit and push changes after completing a feature or significant change.**
 
 When building a new feature:
 1. Implement the feature
@@ -13,6 +13,7 @@ When building a new feature:
    - `fix:` for bug fixes
    - `refactor:` for code refactoring
    - `docs:` for documentation changes
+5. Push to remote with `git push`
 
 ## Project Overview
 
