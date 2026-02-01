@@ -1,10 +1,13 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { getApiKey } from './storage';
 import { OnboardingMessage, OnboardingSuggestion, Category, Difficulty } from '../types';
 
-// Configuration
+// OpenRouter Configuration
+// IMPORTANT: Replace with your actual OpenRouter API key
+// For production, use a backend proxy to hide this key
+const OPENROUTER_API_KEY = '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';
+
 const API_CONFIG = {
-  model: 'claude-sonnet-4-20250514',
+  model: 'minimax/minimax-m2-her',
   maxTokens: 1024,
 };
 
@@ -84,22 +87,22 @@ Guidelines:
 
 // ============ Client Management ============
 
-let client: Anthropic | null = null;
+// OpenRouter client with Anthropic SDK compatibility
+const client = new Anthropic({
+  baseURL: 'https://openrouter.ai/api',
+  apiKey: OPENROUTER_API_KEY,
+  defaultHeaders: {
+    'HTTP-Referer': 'https://datapractice.app',
+    'X-Title': 'Data Practice App',
+  },
+});
 
-async function getClient(): Promise<Anthropic> {
-  const apiKey = await getApiKey();
-  if (!apiKey) {
-    throw new OnboardingApiError('API key not configured', false);
-  }
-
-  if (!client) {
-    client = new Anthropic({ apiKey });
-  }
+function getClient(): Anthropic {
   return client;
 }
 
 export function resetOnboardingClient(): void {
-  client = null;
+  // No-op: client is now statically configured
 }
 
 // ============ Main Functions ============
@@ -108,7 +111,7 @@ export async function continueOnboardingConversation(
   history: OnboardingMessage[],
   userMessage: string
 ): Promise<string> {
-  const anthropic = await getClient();
+  const anthropic = getClient();
 
   // Build messages array with history
   const messages: Anthropic.MessageParam[] = history.map((msg) => ({
@@ -139,14 +142,14 @@ export async function continueOnboardingConversation(
       throw new OnboardingApiError('Rate limit exceeded. Please wait a moment.', true);
     }
     if (error.status === 401) {
-      throw new OnboardingApiError('Invalid API key. Please check your settings.', false);
+      throw new OnboardingApiError('Authentication failed. Please contact support.', false);
     }
     throw new OnboardingApiError(`API error: ${error.message}`, true);
   }
 }
 
 export async function getInitialGreeting(): Promise<string> {
-  const anthropic = await getClient();
+  const anthropic = getClient();
 
   try {
     const response = await anthropic.messages.create({
@@ -170,7 +173,7 @@ export async function getInitialGreeting(): Promise<string> {
       throw new OnboardingApiError('Rate limit exceeded. Please wait a moment.', true);
     }
     if (error.status === 401) {
-      throw new OnboardingApiError('Invalid API key. Please check your settings.', false);
+      throw new OnboardingApiError('Authentication failed. Please contact support.', false);
     }
     throw new OnboardingApiError(`API error: ${error.message}`, true);
   }
@@ -179,7 +182,7 @@ export async function getInitialGreeting(): Promise<string> {
 export async function extractPreferencesFromConversation(
   history: OnboardingMessage[]
 ): Promise<OnboardingSuggestion> {
-  const anthropic = await getClient();
+  const anthropic = getClient();
 
   // Format conversation for extraction
   const conversationText = history
@@ -261,6 +264,11 @@ export async function extractPreferencesFromConversation(
         'ab-testing': 'intermediate',
         'visualization': 'intermediate',
         'feature-engineering': 'intermediate',
+        'llm-fundamentals': 'intermediate',
+        'ml-infrastructure': 'intermediate',
+        'data-platforms': 'intermediate',
+        'fundamentals': 'beginner',
+        'devops': 'intermediate',
       },
     };
   }

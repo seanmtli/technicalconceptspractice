@@ -43,6 +43,36 @@ export const CATEGORIES: CategoryInfo[] = [
     color: '#795548',
     icon: 'cog',
   },
+  {
+    id: 'llm-fundamentals',
+    label: 'LLM Fundamentals',
+    color: '#E91E63',
+    icon: 'brain',
+  },
+  {
+    id: 'ml-infrastructure',
+    label: 'ML Infrastructure',
+    color: '#607D8B',
+    icon: 'server',
+  },
+  {
+    id: 'data-platforms',
+    label: 'Data Platforms',
+    color: '#3F51B5',
+    icon: 'database-cog',
+  },
+  {
+    id: 'fundamentals',
+    label: 'Software Fundamentals',
+    color: '#009688',
+    icon: 'code-braces',
+  },
+  {
+    id: 'devops',
+    label: 'DevOps & Infrastructure',
+    color: '#FF5722',
+    icon: 'cogs',
+  },
 ];
 
 export const CATEGORY_MAP: Record<Category, CategoryInfo> = CATEGORIES.reduce(

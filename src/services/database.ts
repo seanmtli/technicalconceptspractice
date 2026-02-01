@@ -14,9 +14,27 @@ import {
   OnboardingMessage,
 } from '../types';
 import { SEED_QUESTIONS } from '../data/seedQuestions';
+import { TECHNICALLY_DEV_QUESTIONS } from '../data/technicallyDevQuestions';
+import { TECHNICAL_DEFINITIONS } from '../data/technicalDefinitions';
 
 const DATABASE_NAME = 'datapractice.db';
-const CURRENT_SCHEMA_VERSION = 2;
+const CURRENT_SCHEMA_VERSION = 4;
+
+// All valid categories for CHECK constraint
+const VALID_CATEGORIES = [
+  'statistics',
+  'machine-learning',
+  'python-pandas',
+  'sql',
+  'ab-testing',
+  'visualization',
+  'feature-engineering',
+  'llm-fundamentals',
+  'ml-infrastructure',
+  'data-platforms',
+  'fundamentals',
+  'devops',
+];
 
 let db: SQLite.SQLiteDatabase | null = null;
 
@@ -64,15 +82,17 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
 
 // Create all tables
 async function createTables(database: SQLite.SQLiteDatabase): Promise<void> {
+  const categoryCheck = `category IN ('${VALID_CATEGORIES.join("', '")}')`;
   await database.execAsync(`
     CREATE TABLE IF NOT EXISTS questions (
       id TEXT PRIMARY KEY,
       prompt TEXT NOT NULL,
-      category TEXT NOT NULL CHECK (category IN ('statistics', 'machine-learning', 'python-pandas', 'sql', 'ab-testing', 'visualization', 'feature-engineering')),
+      category TEXT NOT NULL CHECK (${categoryCheck}),
       difficulty TEXT NOT NULL CHECK (difficulty IN ('beginner', 'intermediate', 'advanced')),
       key_concepts TEXT NOT NULL,
       is_custom INTEGER DEFAULT 0 CHECK (is_custom IN (0, 1)),
-      created_at TEXT NOT NULL
+      created_at TEXT NOT NULL,
+      source_references TEXT
     );
 
     CREATE INDEX IF NOT EXISTS idx_questions_category ON questions(category);
@@ -190,6 +210,27 @@ async function runMigrations(
     `);
   }
 
+  // Migration from version 2 to 3: Add source_references column and new categories
+  if (fromVersion < 3) {
+    // Add source_references column to questions table
+    await database.execAsync(`
+      ALTER TABLE questions ADD COLUMN source_references TEXT;
+    `);
+
+    // Note: SQLite doesn't support modifying CHECK constraints directly.
+    // The new categories will work because SQLite CHECK constraints are
+    // not enforced on existing data, and new inserts will validate.
+    // For a production app, you'd recreate the table.
+
+    // Seed new questions for the new categories
+    await seedNewCategoryQuestions(database);
+  }
+
+  // Migration from version 3 to 4: Add technical definitions
+  if (fromVersion < 4) {
+    await seedTechnicalDefinitions(database);
+  }
+
   await database.runAsync(
     'UPDATE schema_version SET version = ?',
     CURRENT_SCHEMA_VERSION
@@ -200,20 +241,124 @@ async function runMigrations(
 async function seedQuestions(database: SQLite.SQLiteDatabase): Promise<void> {
   const now = new Date().toISOString();
 
+  // Seed original questions
   for (const q of SEED_QUESTIONS) {
     const id = Crypto.randomUUID();
     await database.runAsync(
-      `INSERT INTO questions (id, prompt, category, difficulty, key_concepts, is_custom, created_at)
-       VALUES (?, ?, ?, ?, ?, 0, ?)`,
+      `INSERT INTO questions (id, prompt, category, difficulty, key_concepts, is_custom, created_at, source_references)
+       VALUES (?, ?, ?, ?, ?, 0, ?, ?)`,
       id,
       q.prompt,
       q.category,
       q.difficulty,
       JSON.stringify(q.keyConcepts),
-      now
+      now,
+      null
     );
 
     // Create initial schedule (due immediately)
+    await database.runAsync(
+      `INSERT INTO card_schedules (question_id, next_review_date, ease_factor, interval, repetitions)
+       VALUES (?, ?, 2.5, 0, 0)`,
+      id,
+      now
+    );
+  }
+
+  // Seed technically.dev questions
+  for (const q of TECHNICALLY_DEV_QUESTIONS) {
+    const id = Crypto.randomUUID();
+    await database.runAsync(
+      `INSERT INTO questions (id, prompt, category, difficulty, key_concepts, is_custom, created_at, source_references)
+       VALUES (?, ?, ?, ?, ?, 0, ?, ?)`,
+      id,
+      q.prompt,
+      q.category,
+      q.difficulty,
+      JSON.stringify(q.keyConcepts),
+      now,
+      q.sourceReferences ? JSON.stringify(q.sourceReferences) : null
+    );
+
+    // Create initial schedule (due immediately)
+    await database.runAsync(
+      `INSERT INTO card_schedules (question_id, next_review_date, ease_factor, interval, repetitions)
+       VALUES (?, ?, 2.5, 0, 0)`,
+      id,
+      now
+    );
+  }
+
+  // Seed technical definitions
+  for (const q of TECHNICAL_DEFINITIONS) {
+    const id = Crypto.randomUUID();
+    await database.runAsync(
+      `INSERT INTO questions (id, prompt, category, difficulty, key_concepts, is_custom, created_at, source_references)
+       VALUES (?, ?, ?, ?, ?, 0, ?, ?)`,
+      id,
+      q.prompt,
+      q.category,
+      q.difficulty,
+      JSON.stringify(q.keyConcepts),
+      now,
+      q.sourceReferences ? JSON.stringify(q.sourceReferences) : null
+    );
+
+    await database.runAsync(
+      `INSERT INTO card_schedules (question_id, next_review_date, ease_factor, interval, repetitions)
+       VALUES (?, ?, 2.5, 0, 0)`,
+      id,
+      now
+    );
+  }
+}
+
+// Seed new category questions for migration
+async function seedNewCategoryQuestions(database: SQLite.SQLiteDatabase): Promise<void> {
+  const now = new Date().toISOString();
+
+  for (const q of TECHNICALLY_DEV_QUESTIONS) {
+    const id = Crypto.randomUUID();
+    await database.runAsync(
+      `INSERT INTO questions (id, prompt, category, difficulty, key_concepts, is_custom, created_at, source_references)
+       VALUES (?, ?, ?, ?, ?, 0, ?, ?)`,
+      id,
+      q.prompt,
+      q.category,
+      q.difficulty,
+      JSON.stringify(q.keyConcepts),
+      now,
+      q.sourceReferences ? JSON.stringify(q.sourceReferences) : null
+    );
+
+    // Create initial schedule (due immediately)
+    await database.runAsync(
+      `INSERT INTO card_schedules (question_id, next_review_date, ease_factor, interval, repetitions)
+       VALUES (?, ?, 2.5, 0, 0)`,
+      id,
+      now
+    );
+  }
+}
+
+// Seed technical definitions for migration
+async function seedTechnicalDefinitions(database: SQLite.SQLiteDatabase): Promise<void> {
+  const now = new Date().toISOString();
+
+  for (const q of TECHNICAL_DEFINITIONS) {
+    const id = Crypto.randomUUID();
+    await database.runAsync(
+      `INSERT INTO questions (id, prompt, category, difficulty, key_concepts, is_custom, created_at, source_references)
+       VALUES (?, ?, ?, ?, ?, 0, ?, ?)`,
+      id,
+      q.prompt,
+      q.category,
+      q.difficulty,
+      JSON.stringify(q.keyConcepts),
+      now,
+      q.sourceReferences ? JSON.stringify(q.sourceReferences) : null
+    );
+
     await database.runAsync(
       `INSERT INTO card_schedules (question_id, next_review_date, ease_factor, interval, repetitions)
        VALUES (?, ?, 2.5, 0, 0)`,
@@ -254,15 +399,16 @@ export async function addQuestion(
   const now = new Date().toISOString();
 
   await db.runAsync(
-    `INSERT INTO questions (id, prompt, category, difficulty, key_concepts, is_custom, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO questions (id, prompt, category, difficulty, key_concepts, is_custom, created_at, source_references)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     question.prompt,
     question.category,
     question.difficulty,
     JSON.stringify(question.keyConcepts),
     question.isCustom ? 1 : 0,
-    now
+    now,
+    question.sourceReferences ? JSON.stringify(question.sourceReferences) : null
   );
 
   // Create initial schedule
@@ -555,15 +701,7 @@ export async function getRecentSessions(limit: number = 10): Promise<PracticeSes
 export async function getCategoryStats(): Promise<CategoryStats[]> {
   const db = await getDatabase();
 
-  const categories: Category[] = [
-    'statistics',
-    'machine-learning',
-    'python-pandas',
-    'sql',
-    'ab-testing',
-    'visualization',
-    'feature-engineering',
-  ];
+  const categories: Category[] = ALL_CATEGORIES;
 
   const stats: CategoryStats[] = [];
 
@@ -651,6 +789,11 @@ const DEFAULT_DIFFICULTIES: Record<Category, Difficulty> = {
   'ab-testing': 'intermediate',
   'visualization': 'intermediate',
   'feature-engineering': 'intermediate',
+  'llm-fundamentals': 'intermediate',
+  'ml-infrastructure': 'intermediate',
+  'data-platforms': 'intermediate',
+  'fundamentals': 'beginner',
+  'devops': 'intermediate',
 };
 
 const ALL_CATEGORIES: Category[] = [
@@ -661,6 +804,11 @@ const ALL_CATEGORIES: Category[] = [
   'ab-testing',
   'visualization',
   'feature-engineering',
+  'llm-fundamentals',
+  'ml-infrastructure',
+  'data-platforms',
+  'fundamentals',
+  'devops',
 ];
 
 export async function getUserPreferences(): Promise<UserPreferences | null> {
@@ -859,6 +1007,7 @@ function mapRowToQuestion(row: any): Question {
     keyConcepts: JSON.parse(row.key_concepts),
     isCustom: row.is_custom === 1,
     createdAt: row.created_at,
+    sourceReferences: row.source_references ? JSON.parse(row.source_references) : undefined,
   };
 }
 

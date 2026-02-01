@@ -6,7 +6,19 @@ export type Category =
   | 'sql'
   | 'ab-testing'
   | 'visualization'
-  | 'feature-engineering';
+  | 'feature-engineering'
+  | 'llm-fundamentals'
+  | 'ml-infrastructure'
+  | 'data-platforms'
+  | 'fundamentals'
+  | 'devops';
+
+// Source reference for content attribution
+export interface SourceReference {
+  url: string;
+  title: string;
+  accessLevel: 'free' | 'partial';
+}
 
 export type Difficulty = 'beginner' | 'intermediate' | 'advanced';
 
@@ -44,6 +56,7 @@ export interface Question {
   keyConcepts: string[];
   isCustom: boolean;
   createdAt: string; // ISO date string
+  sourceReferences?: SourceReference[];
 }
 
 export interface ReviewRecord {
@@ -180,8 +193,6 @@ export type PracticeState =
 // App context state
 export interface AppState {
   isOnline: boolean;
-  hasClaudeApiKey: boolean;
-  hasWhisperApiKey: boolean;
   isInitialized: boolean;
   currentSessionId: string | null;
   hasCompletedOnboarding: boolean;
@@ -190,7 +201,6 @@ export interface AppState {
 
 export type AppAction =
   | { type: 'SET_ONLINE'; payload: boolean }
-  | { type: 'SET_API_KEYS'; payload: { claude: boolean; whisper: boolean } }
   | { type: 'SET_INITIALIZED' }
   | { type: 'SET_SESSION'; payload: string | null }
   | { type: 'SET_ONBOARDING_COMPLETE'; payload: { completed: boolean; preferences: UserPreferences | null } }
