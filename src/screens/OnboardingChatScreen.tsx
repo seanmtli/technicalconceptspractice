@@ -113,9 +113,9 @@ export default function OnboardingChatScreen({ navigation }: Props) {
     ];
     setMessages(updatedMessages);
 
-    // Count user messages (hard limit of 3)
+    // Count user messages (hard limit of 4)
     const userMessageCount = updatedMessages.filter(m => m.role === 'user').length;
-    const forceComplete = userMessageCount >= 3;
+    const forceComplete = userMessageCount >= 4;
 
     try {
       // Get assistant response
@@ -238,10 +238,10 @@ export default function OnboardingChatScreen({ navigation }: Props) {
       {/* Welcome Header */}
       <Surface style={styles.header} elevation={1}>
         <Text variant="titleMedium" style={styles.headerTitle}>
-          Let's personalize your learning
+          Learn to explain, not just memorize
         </Text>
         <Text variant="bodySmall" style={styles.headerSubtitle}>
-          Answer a few questions to customize your experience
+          Practice explaining technical concepts in real-world context. No more "parrot syndrome" - build true understanding.
         </Text>
       </Surface>
 
