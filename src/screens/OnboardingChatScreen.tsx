@@ -113,6 +113,10 @@ export default function OnboardingChatScreen({ navigation }: Props) {
     ];
     setMessages(updatedMessages);
 
+    // Count user messages (hard limit of 3)
+    const userMessageCount = updatedMessages.filter(m => m.role === 'user').length;
+    const forceComplete = userMessageCount >= 3;
+
     try {
       // Get assistant response
       const response = await continueOnboardingConversation(messages, userMessage);
@@ -126,8 +130,8 @@ export default function OnboardingChatScreen({ navigation }: Props) {
       setMessages(finalMessages);
       await saveOnboardingConversation(finalMessages);
 
-      // Check if ready for suggestions
-      if (isReadyForSuggestions(response)) {
+      // Check if ready for suggestions OR hit the hard limit
+      if (isReadyForSuggestions(response) || forceComplete) {
         // Extract preferences and navigate
         setTimeout(async () => {
           try {
