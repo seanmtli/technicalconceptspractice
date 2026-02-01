@@ -1,10 +1,13 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { getApiKey } from './storage';
-import { AIEvaluationResponse, GeneratedQuestion, Difficulty } from '../types';
+import Constants from 'expo-constants';
+import { AIEvaluationResponse, GeneratedQuestion, Difficulty, Category } from '../types';
+import { buildEnhancedContext } from './knowledgeEnhancer';
 
-// Configuration
+// OpenRouter Configuration - API key loaded from environment variables
+const OPENROUTER_API_KEY = Constants.expoConfig?.extra?.openRouterApiKey ?? '';
+
 const API_CONFIG = {
-  model: 'claude-sonnet-4-20250514',
+  model: 'minimax/minimax-m2-her',
   maxTokens: 1024,
   maxRetries: 2,
   retryDelayMs: 1000,
@@ -13,7 +16,7 @@ const API_CONFIG = {
 // ============ Error Types ============
 
 export type ClaudeApiErrorCode =
-  | 'NO_API_KEY'
+  | 'AUTH_ERROR'
   | 'RATE_LIMIT'
   | 'NETWORK'
   | 'INVALID_RESPONSE'
@@ -33,22 +36,22 @@ export class ClaudeApiError extends Error {
 
 // ============ Client Management ============
 
-let client: Anthropic | null = null;
+// OpenRouter client with Anthropic SDK compatibility
+const client = new Anthropic({
+  baseURL: 'https://openrouter.ai/api',
+  apiKey: OPENROUTER_API_KEY,
+  defaultHeaders: {
+    'HTTP-Referer': 'https://datapractice.app',
+    'X-Title': 'Data Practice App',
+  },
+});
 
-async function getClient(): Promise<Anthropic> {
-  const apiKey = await getApiKey();
-  if (!apiKey) {
-    throw new ClaudeApiError('API key not configured', 'NO_API_KEY', false);
-  }
-
-  if (!client) {
-    client = new Anthropic({ apiKey });
-  }
+function getClient(): Anthropic {
   return client;
 }
 
 export function resetClient(): void {
-  client = null;
+  // No-op: client is now statically configured
 }
 
 // ============ JSON Parsing ============
@@ -161,12 +164,14 @@ Generate {count} practice questions for:
 - Category: {category}
 - Difficulty: {difficulty}
 - Sub-topic (optional): {subTopic}
+{enhancedContext}
 
 ## Requirements
 Each question should:
 1. Ask the student to EXPLAIN a concept (not just define it)
 2. Require demonstration of understanding, not just recall
 3. Be answerable in 2-4 paragraphs of written explanation
+4. Test practical understanding, trade-offs, and real-world application
 
 ## Difficulty Guidelines
 - Beginner: Foundational concepts, "What is X and why do we use it?"
@@ -207,7 +212,7 @@ export async function evaluateAnswer(
   }
 
   return withRetry(async () => {
-    const anthropic = await getClient();
+    const anthropic = getClient();
 
     const prompt = EVALUATION_PROMPT.replace('{question}', question)
       .replace('{keyConcepts}', keyConcepts.join(', '))
@@ -255,8 +260,8 @@ export async function evaluateAnswer(
       }
       if (error.status === 401) {
         throw new ClaudeApiError(
-          'Invalid API key. Please check your settings.',
-          'NO_API_KEY',
+          'Authentication failed. Please contact support.',
+          'AUTH_ERROR',
           false
         );
       }
@@ -285,7 +290,8 @@ export async function generateQuestions(
   category: string,
   difficulty: Difficulty,
   subTopic: string | null,
-  count: number
+  count: number,
+  categoryId?: Category
 ): Promise<GeneratedQuestion[]> {
   // Validate count
   if (count < 1 || count > 5) {
@@ -297,12 +303,18 @@ export async function generateQuestions(
   }
 
   return withRetry(async () => {
-    const anthropic = await getClient();
+    const anthropic = getClient();
+
+    // Build enhanced context if we have a category ID
+    const enhancedContext = categoryId
+      ? buildEnhancedContext(categoryId, subTopic)
+      : '';
 
     const prompt = GENERATION_PROMPT.replace('{count}', count.toString())
       .replace('{category}', category)
       .replace(/\{difficulty\}/g, difficulty)
-      .replace('{subTopic}', subTopic || 'general');
+      .replace('{subTopic}', subTopic || 'general')
+      .replace('{enhancedContext}', enhancedContext ? `\n${enhancedContext}` : '');
 
     const response = await anthropic.messages.create({
       model: API_CONFIG.model,
@@ -333,7 +345,7 @@ export async function generateQuestions(
 
 export async function testConnection(): Promise<boolean> {
   try {
-    const anthropic = await getClient();
+    const anthropic = getClient();
     await anthropic.messages.create({
       model: API_CONFIG.model,
       max_tokens: 10,

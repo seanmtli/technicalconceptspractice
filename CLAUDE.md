@@ -1,5 +1,15 @@
 # Project Instructions for Claude
 
+## Secrets Management
+
+**NEVER commit API keys or secrets to the repository.**
+
+- Store secrets in `.env` file (already in `.gitignore`)
+- Use `.env.example` as a template for required variables
+- Access secrets via `Constants.expoConfig?.extra` from `expo-constants`
+- Current environment variables:
+  - `OPENROUTER_API_KEY` - API key for OpenRouter services
+
 ## Git Workflow
 
 **Always commit and push changes after completing a feature or significant change.**

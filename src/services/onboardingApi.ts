@@ -1,10 +1,9 @@
 import Anthropic from '@anthropic-ai/sdk';
+import Constants from 'expo-constants';
 import { OnboardingMessage, OnboardingSuggestion, Category, Difficulty } from '../types';
 
-// OpenRouter Configuration
-// IMPORTANT: Replace with your actual OpenRouter API key
-// For production, use a backend proxy to hide this key
-const OPENROUTER_API_KEY = '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';
+// OpenRouter Configuration - API key loaded from environment variables
+const OPENROUTER_API_KEY = Constants.expoConfig?.extra?.openRouterApiKey ?? '';
 
 const API_CONFIG = {
   model: 'minimax/minimax-m2-her',

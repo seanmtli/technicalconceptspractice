@@ -1,19 +1,20 @@
 import * as FileSystem from 'expo-file-system';
-import { getWhisperApiKey } from './storage';
+import Constants from 'expo-constants';
 
 // ============ Configuration ============
 
-const WHISPER_CONFIG = {
-  apiUrl: 'https://api.openai.com/v1/audio/transcriptions',
-  model: 'whisper-1',
-  language: 'en',
-  maxFileSizeMb: 25,
+// OpenRouter Configuration - API key loaded from environment variables
+const OPENROUTER_API_KEY = Constants.expoConfig?.extra?.openRouterApiKey ?? '';
+
+const TRANSCRIPTION_CONFIG = {
+  apiUrl: 'https://openrouter.ai/api/v1/chat/completions',
+  model: 'mistralai/voxtral-small-24b-2507',
+  maxFileSizeMb: 100, // Voxtral supports up to 30 min audio
 };
 
 // ============ Error Types ============
 
 export type TranscriptionErrorCode =
-  | 'NO_API_KEY'
   | 'FILE_NOT_FOUND'
   | 'FILE_TOO_LARGE'
   | 'API_ERROR'
@@ -26,18 +27,25 @@ export class TranscriptionError extends Error {
   }
 }
 
+// ============ Audio Format Detection ============
+
+function getAudioFormat(uri: string): string {
+  const extension = uri.split('.').pop()?.toLowerCase();
+  const formatMap: Record<string, string> = {
+    wav: 'wav',
+    mp3: 'mp3',
+    m4a: 'm4a',
+    aac: 'aac',
+    ogg: 'ogg',
+    flac: 'flac',
+    aiff: 'aiff',
+  };
+  return formatMap[extension || ''] || 'm4a'; // Default to m4a (iOS recording format)
+}
+
 // ============ Main Function ============
 
 export async function transcribeAudio(audioUri: string): Promise<string> {
-  // Verify API key
-  const apiKey = await getWhisperApiKey();
-  if (!apiKey) {
-    throw new TranscriptionError(
-      'Whisper API key not configured. Please add your OpenAI API key in Settings.',
-      'NO_API_KEY'
-    );
-  }
-
   // Verify file exists
   const fileInfo = await FileSystem.getInfoAsync(audioUri);
   if (!fileInfo.exists) {
@@ -47,9 +55,9 @@ export async function transcribeAudio(audioUri: string): Promise<string> {
   // Check file size
   if (fileInfo.size) {
     const fileSizeMb = fileInfo.size / (1024 * 1024);
-    if (fileSizeMb > WHISPER_CONFIG.maxFileSizeMb) {
+    if (fileSizeMb > TRANSCRIPTION_CONFIG.maxFileSizeMb) {
       throw new TranscriptionError(
-        `Audio file too large (${fileSizeMb.toFixed(1)}MB, max ${WHISPER_CONFIG.maxFileSizeMb}MB)`,
+        `Audio file too large (${fileSizeMb.toFixed(1)}MB, max ${TRANSCRIPTION_CONFIG.maxFileSizeMb}MB)`,
         'FILE_TOO_LARGE'
       );
     }
@@ -61,25 +69,44 @@ export async function transcribeAudio(audioUri: string): Promise<string> {
       encoding: FileSystem.EncodingType.Base64,
     });
 
-    // Convert base64 to blob for form data
-    const audioBlob = await fetch(`data:audio/m4a;base64,${base64Audio}`).then(
-      (r) => r.blob()
-    );
+    // Detect audio format from file extension
+    const audioFormat = getAudioFormat(audioUri);
 
-    // Create form data
-    const formData = new FormData();
-    formData.append('file', audioBlob, 'audio.m4a');
-    formData.append('model', WHISPER_CONFIG.model);
-    formData.append('language', WHISPER_CONFIG.language);
-    formData.append('response_format', 'text');
+    // Build request body for OpenRouter chat completions with audio
+    const requestBody = {
+      model: TRANSCRIPTION_CONFIG.model,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: 'Transcribe this audio. Output only the transcription text, nothing else.',
+            },
+            {
+              type: 'input_audio',
+              input_audio: {
+                data: base64Audio,
+                format: audioFormat,
+              },
+            },
+          ],
+        },
+      ],
+      temperature: 0, // Use 0 for transcription accuracy
+      max_tokens: 4096,
+    };
 
-    // Make API request
-    const response = await fetch(WHISPER_CONFIG.apiUrl, {
+    // Make API request to OpenRouter
+    const response = await fetch(TRANSCRIPTION_CONFIG.apiUrl, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+        'HTTP-Referer': 'https://datapractice.app',
+        'X-Title': 'Data Practice App',
       },
-      body: formData,
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -87,7 +114,14 @@ export async function transcribeAudio(audioUri: string): Promise<string> {
 
       if (response.status === 401) {
         throw new TranscriptionError(
-          'Invalid OpenAI API key. Please check your settings.',
+          'Authentication failed. Please contact support.',
+          'API_ERROR'
+        );
+      }
+
+      if (response.status === 429) {
+        throw new TranscriptionError(
+          'Rate limit exceeded. Please wait a moment and try again.',
           'API_ERROR'
         );
       }
@@ -98,9 +132,12 @@ export async function transcribeAudio(audioUri: string): Promise<string> {
       );
     }
 
-    const transcription = await response.text();
+    const result = await response.json();
 
-    if (!transcription.trim()) {
+    // Extract transcription from chat completion response
+    const transcription = result.choices?.[0]?.message?.content;
+
+    if (!transcription?.trim()) {
       throw new TranscriptionError(
         'No speech detected in the recording. Please try again.',
         'EMPTY_RESULT'
@@ -121,11 +158,12 @@ export async function transcribeAudio(audioUri: string): Promise<string> {
 
 /**
  * Estimate transcription cost
- * Whisper API: $0.006 per minute
+ * Voxtral via OpenRouter: ~$0.10/M input tokens + audio tokens
+ * Roughly $0.001 per minute of audio
  */
 export function estimateCost(durationMs: number): number {
   const minutes = durationMs / 60000;
-  return minutes * 0.006;
+  return minutes * 0.001;
 }
 
 /**
