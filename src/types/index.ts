@@ -194,6 +194,7 @@ export type PracticeState =
 export interface AppState {
   isOnline: boolean;
   isInitialized: boolean;
+  isAuthenticated: boolean;
   currentSessionId: string | null;
   hasCompletedOnboarding: boolean;
   userPreferences: UserPreferences | null;
@@ -203,5 +204,13 @@ export type AppAction =
   | { type: 'SET_ONLINE'; payload: boolean }
   | { type: 'SET_INITIALIZED' }
   | { type: 'SET_SESSION'; payload: string | null }
+  | { type: 'SET_AUTHENTICATED'; payload: boolean }
   | { type: 'SET_ONBOARDING_COMPLETE'; payload: { completed: boolean; preferences: UserPreferences | null } }
   | { type: 'UPDATE_PREFERENCES'; payload: UserPreferences };
+
+// Auth navigation types
+export type AuthStackParamList = {
+  AuthHome: undefined;
+  SignUp: undefined;
+  Login: undefined;
+};

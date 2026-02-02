@@ -27,7 +27,13 @@ When building a new feature:
 
 ## Project Overview
 
-This is a React Native (Expo) app for practicing data science and technical concepts using spaced repetition.
+This is a React Native (Expo) app that helps users **explain and apply** technical concepts rather than just memorize them.
+
+**Key Philosophy:**
+- Focus on understanding, not rote memorization of syntax or definitions
+- Users explain concepts in their own words and receive AI-powered feedback
+- Covers data science, software fundamentals, and broader technical topics
+- Uses spaced repetition to reinforce deep understanding
 
 ## Key Directories
 

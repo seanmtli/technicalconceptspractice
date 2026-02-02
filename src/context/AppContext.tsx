@@ -8,6 +8,7 @@ import React, {
 } from 'react';
 import NetInfo from '@react-native-community/netinfo';
 import { getDatabase, getUserPreferences, hasCompletedOnboarding } from '../services/database';
+import { getAuthToken } from '../services/storage';
 import { AppState, AppAction, UserPreferences } from '../types';
 import { logger } from '../utils/logger';
 
@@ -16,6 +17,7 @@ import { logger } from '../utils/logger';
 const initialState: AppState = {
   isOnline: true,
   isInitialized: false,
+  isAuthenticated: false,
   currentSessionId: null,
   hasCompletedOnboarding: false,
   userPreferences: null,
@@ -31,6 +33,8 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, isInitialized: true };
     case 'SET_SESSION':
       return { ...state, currentSessionId: action.payload };
+    case 'SET_AUTHENTICATED':
+      return { ...state, isAuthenticated: action.payload };
     case 'SET_ONBOARDING_COMPLETE':
       return {
         ...state,
@@ -94,6 +98,12 @@ export function AppProvider({ children }: AppProviderProps) {
       try {
         // Initialize database (creates tables and seeds data if needed)
         await getDatabase();
+
+        // Check for existing auth token
+        const authToken = await getAuthToken();
+        if (authToken) {
+          dispatch({ type: 'SET_AUTHENTICATED', payload: true });
+        }
 
         // Load onboarding state
         await loadOnboardingState();

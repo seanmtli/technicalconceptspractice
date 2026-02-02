@@ -9,7 +9,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { AppProvider, useApp } from './src/context/AppContext';
 import { theme } from './src/constants/theme';
-import { RootTabParamList, HomeStackParamList, QuestionsStackParamList, OnboardingStackParamList } from './src/types';
+import { RootTabParamList, HomeStackParamList, QuestionsStackParamList, OnboardingStackParamList, AuthStackParamList } from './src/types';
 
 // Screens
 import HomeScreen from './src/screens/HomeScreen';
@@ -22,12 +22,16 @@ import GenerateQuestionsScreen from './src/screens/GenerateQuestionsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import OnboardingChatScreen from './src/screens/OnboardingChatScreen';
 import PreferencesReviewScreen from './src/screens/PreferencesReviewScreen';
+import AuthHomeScreen from './src/screens/AuthHomeScreen';
+import SignUpScreen from './src/screens/SignUpScreen';
+import LoginScreen from './src/screens/LoginScreen';
 
 // Create navigators
 const Tab = createBottomTabNavigator<RootTabParamList>();
 const HomeStack = createNativeStackNavigator<HomeStackParamList>();
 const QuestionsStack = createNativeStackNavigator<QuestionsStackParamList>();
 const OnboardingStack = createNativeStackNavigator<OnboardingStackParamList>();
+const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 
 // Home Stack Navigator
 function HomeStackNavigator() {
@@ -96,6 +100,28 @@ function OnboardingNavigator() {
         options={{ title: 'Review Preferences' }}
       />
     </OnboardingStack.Navigator>
+  );
+}
+
+// Auth Navigator
+function AuthNavigator() {
+  return (
+    <AuthStack.Navigator screenOptions={{ headerShown: false }}>
+      <AuthStack.Screen
+        name="AuthHome"
+        component={AuthHomeScreen}
+      />
+      <AuthStack.Screen
+        name="SignUp"
+        component={SignUpScreen}
+        options={{ headerShown: true, title: 'Create Account' }}
+      />
+      <AuthStack.Screen
+        name="Login"
+        component={LoginScreen}
+        options={{ headerShown: true, title: 'Welcome Back' }}
+      />
+    </AuthStack.Navigator>
   );
 }
 
@@ -172,6 +198,15 @@ function AppContent() {
 
   if (!state.isInitialized) {
     return <LoadingScreen />;
+  }
+
+  // Show auth screens if not authenticated
+  if (!state.isAuthenticated) {
+    return (
+      <NavigationContainer>
+        <AuthNavigator />
+      </NavigationContainer>
+    );
   }
 
   // Show onboarding if not completed
