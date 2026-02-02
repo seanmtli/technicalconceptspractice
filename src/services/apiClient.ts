@@ -4,7 +4,6 @@
  */
 
 import Constants from 'expo-constants';
-import Anthropic from '@anthropic-ai/sdk';
 
 // ============ Configuration ============
 
@@ -49,24 +48,4 @@ export function getRequestHeaders(): HeadersInit {
     'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
     ...COMMON_HEADERS,
   };
-}
-
-// ============ Anthropic SDK Client ============
-
-// Lazily created client for SDK-based calls
-let anthropicClient: Anthropic | null = null;
-
-/**
- * Get Anthropic SDK client configured for OpenRouter.
- * Used by services that need the full SDK capabilities.
- */
-export function getAnthropicClient(): Anthropic {
-  if (!anthropicClient) {
-    anthropicClient = new Anthropic({
-      baseURL: 'https://openrouter.ai/api',
-      apiKey: OPENROUTER_API_KEY,
-      defaultHeaders: COMMON_HEADERS,
-    });
-  }
-  return anthropicClient;
 }

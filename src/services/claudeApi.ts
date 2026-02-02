@@ -1,8 +1,8 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { AIEvaluationResponse, GeneratedQuestion, Difficulty, Category } from '../types';
 import { buildEnhancedContext } from './knowledgeEnhancer';
-import { getErrorMessage, hasStatus, hasErrorCode, errorContains } from '../utils/errors';
-import { getAnthropicClient, MODELS } from './apiClient';
+import { getErrorMessage, errorContains } from '../utils/errors';
+import { MODELS, isApiKeyConfigured, API_BASE_URL, getRequestHeaders } from './apiClient';
+import { logger } from '../utils/logger';
 
 const API_CONFIG = {
   model: MODELS.chat,
@@ -30,12 +30,6 @@ export class ClaudeApiError extends Error {
     super(message);
     this.name = 'ClaudeApiError';
   }
-}
-
-// ============ Client Management ============
-
-function getClient(): Anthropic {
-  return getAnthropicClient();
 }
 
 // ============ JSON Parsing ============
@@ -196,21 +190,51 @@ export async function evaluateAnswer(
   }
 
   return withRetry(async () => {
-    const anthropic = getClient();
-
     const prompt = EVALUATION_PROMPT.replace('{question}', question)
       .replace('{keyConcepts}', keyConcepts.join(', '))
       .replace('{userAnswer}', userAnswer);
 
     try {
-      const response = await anthropic.messages.create({
-        model: API_CONFIG.model,
-        max_tokens: API_CONFIG.maxTokens,
-        messages: [{ role: 'user', content: prompt }],
+      // Use fetch directly for better React Native compatibility
+      const response = await fetch(API_BASE_URL, {
+        method: 'POST',
+        headers: getRequestHeaders(),
+        body: JSON.stringify({
+          model: API_CONFIG.model,
+          max_tokens: API_CONFIG.maxTokens,
+          messages: [{ role: 'user', content: prompt }],
+        }),
       });
 
-      const text =
-        response.content[0].type === 'text' ? response.content[0].text : '';
+      if (!response.ok) {
+        if (response.status === 429) {
+          throw new ClaudeApiError(
+            'Rate limit exceeded. Please wait a moment.',
+            'RATE_LIMIT',
+            true
+          );
+        }
+        if (response.status === 401) {
+          throw new ClaudeApiError(
+            'Authentication failed. Please contact support.',
+            'AUTH_ERROR',
+            false
+          );
+        }
+        const errorData = await response.json().catch(() => ({}));
+        throw new ClaudeApiError(
+          `API error: ${errorData.error?.message || response.statusText}`,
+          'UNKNOWN',
+          true
+        );
+      }
+
+      const data = await response.json();
+      const text = data.choices?.[0]?.message?.content ?? '';
+
+      if (!text) {
+        throw new ClaudeApiError('Empty response from API', 'INVALID_RESPONSE', true);
+      }
 
       const parsed = parseJsonResponse<AIEvaluationResponse>(text);
 
@@ -234,37 +258,20 @@ export async function evaluateAnswer(
 
       return parsed;
     } catch (error) {
-      // Map Anthropic errors to our error types
-      if (hasStatus(error) && error.status === 429) {
-        throw new ClaudeApiError(
-          'Rate limit exceeded. Please wait a moment.',
-          'RATE_LIMIT',
-          true
-        );
+      if (error instanceof ClaudeApiError) {
+        throw error;
       }
-      if (hasStatus(error) && error.status === 401) {
-        throw new ClaudeApiError(
-          'Authentication failed. Please contact support.',
-          'AUTH_ERROR',
-          false
-        );
-      }
-      if (
-        hasErrorCode(error, 'ECONNABORTED') ||
-        errorContains(error, 'timeout')
-      ) {
+      if (errorContains(error, 'timeout') || errorContains(error, 'abort')) {
         throw new ClaudeApiError('Request timed out', 'TIMEOUT', true);
       }
-      if (hasErrorCode(error, 'ENOTFOUND') || hasErrorCode(error, 'ECONNREFUSED')) {
+      if (errorContains(error, 'network') || errorContains(error, 'fetch')) {
         throw new ClaudeApiError(
           'Network error. Check your connection.',
           'NETWORK',
           true
         );
       }
-      if (error instanceof ClaudeApiError) {
-        throw error;
-      }
+      logger.error('Evaluation failed', error);
       throw new ClaudeApiError(`API error: ${getErrorMessage(error)}`, 'UNKNOWN', true);
     }
   });
@@ -277,6 +284,15 @@ export async function generateQuestions(
   count: number,
   categoryId?: Category
 ): Promise<GeneratedQuestion[]> {
+  // Validate API key is configured
+  if (!isApiKeyConfigured()) {
+    throw new ClaudeApiError(
+      'API key not configured. Please add OPENROUTER_API_KEY to .env file.',
+      'AUTH_ERROR',
+      false
+    );
+  }
+
   // Validate count
   if (count < 1 || count > 5) {
     throw new ClaudeApiError(
@@ -286,9 +302,9 @@ export async function generateQuestions(
     );
   }
 
-  return withRetry(async () => {
-    const anthropic = getClient();
+  logger.info('Generating questions', { category, difficulty, subTopic, count });
 
+  return withRetry(async () => {
     // Build enhanced context if we have a category ID
     const enhancedContext = categoryId
       ? buildEnhancedContext(categoryId, subTopic)
@@ -300,30 +316,81 @@ export async function generateQuestions(
       .replace('{subTopic}', subTopic || 'general')
       .replace('{enhancedContext}', enhancedContext ? `\n${enhancedContext}` : '');
 
-    const response = await anthropic.messages.create({
-      model: API_CONFIG.model,
-      max_tokens: API_CONFIG.maxTokens * 2,
-      messages: [{ role: 'user', content: prompt }],
-    });
+    try {
+      // Use fetch directly for better React Native compatibility
+      const response = await fetch(API_BASE_URL, {
+        method: 'POST',
+        headers: getRequestHeaders(),
+        body: JSON.stringify({
+          model: API_CONFIG.model,
+          max_tokens: API_CONFIG.maxTokens * 2,
+          messages: [{ role: 'user', content: prompt }],
+        }),
+      });
 
-    const text =
-      response.content[0].type === 'text' ? response.content[0].text : '';
-    const parsed = parseJsonResponse<{ questions: GeneratedQuestion[] }>(text);
+      if (!response.ok) {
+        if (response.status === 429) {
+          throw new ClaudeApiError(
+            'Rate limit exceeded. Please wait a moment.',
+            'RATE_LIMIT',
+            true
+          );
+        }
+        if (response.status === 401) {
+          throw new ClaudeApiError(
+            'Authentication failed. Please check API key.',
+            'AUTH_ERROR',
+            false
+          );
+        }
+        const errorData = await response.json().catch(() => ({}));
+        throw new ClaudeApiError(
+          `API error: ${errorData.error?.message || response.statusText}`,
+          'UNKNOWN',
+          true
+        );
+      }
 
-    // Validate response
-    if (!Array.isArray(parsed.questions) || parsed.questions.length === 0) {
-      throw new ClaudeApiError(
-        'No questions generated',
-        'INVALID_RESPONSE',
-        true
-      );
+      const data = await response.json();
+      const text = data.choices?.[0]?.message?.content ?? '';
+
+      if (!text) {
+        throw new ClaudeApiError('Empty response from API', 'INVALID_RESPONSE', true);
+      }
+
+      const parsed = parseJsonResponse<{ questions: GeneratedQuestion[] }>(text);
+
+      // Validate response
+      if (!Array.isArray(parsed.questions) || parsed.questions.length === 0) {
+        throw new ClaudeApiError(
+          'No questions generated',
+          'INVALID_RESPONSE',
+          true
+        );
+      }
+
+      // Ensure difficulty is set correctly
+      return parsed.questions.map((q) => ({
+        ...q,
+        difficulty,
+      }));
+    } catch (error) {
+      if (error instanceof ClaudeApiError) {
+        throw error;
+      }
+      if (errorContains(error, 'timeout') || errorContains(error, 'abort')) {
+        throw new ClaudeApiError('Request timed out', 'TIMEOUT', true);
+      }
+      if (errorContains(error, 'network') || errorContains(error, 'fetch')) {
+        throw new ClaudeApiError(
+          'Network error. Check your connection.',
+          'NETWORK',
+          true
+        );
+      }
+      logger.error('Question generation failed', error);
+      throw new ClaudeApiError(`API error: ${getErrorMessage(error)}`, 'UNKNOWN', true);
     }
-
-    // Ensure difficulty is set correctly
-    return parsed.questions.map((q) => ({
-      ...q,
-      difficulty,
-    }));
   });
 }
 
