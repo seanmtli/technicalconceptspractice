@@ -16,6 +16,7 @@ import {
 import { SEED_QUESTIONS } from '../data/seedQuestions';
 import { TECHNICALLY_DEV_QUESTIONS } from '../data/technicallyDevQuestions';
 import { TECHNICAL_DEFINITIONS } from '../data/technicalDefinitions';
+import { logger } from '../utils/logger';
 
 const DATABASE_NAME = 'datapractice.db';
 const CURRENT_SCHEMA_VERSION = 5;
@@ -381,7 +382,7 @@ async function seedTechnicalDefinitions(database: SQLite.SQLiteDatabase): Promis
     "SELECT COUNT(*) as count FROM questions WHERE category IN ('fundamentals', 'devops')"
   );
   if (existing && existing.count > 0) {
-    console.log('Technical definitions already seeded, skipping...');
+    logger.debug('Technical definitions already seeded, skipping...');
     return;
   }
 

@@ -1,13 +1,11 @@
 import Anthropic from '@anthropic-ai/sdk';
-import Constants from 'expo-constants';
 import { AIEvaluationResponse, GeneratedQuestion, Difficulty, Category } from '../types';
 import { buildEnhancedContext } from './knowledgeEnhancer';
-
-// OpenRouter Configuration - API key loaded from environment variables
-const OPENROUTER_API_KEY = Constants.expoConfig?.extra?.openRouterApiKey ?? '';
+import { getErrorMessage, hasStatus, hasErrorCode, errorContains } from '../utils/errors';
+import { getAnthropicClient, MODELS } from './apiClient';
 
 const API_CONFIG = {
-  model: 'minimax/minimax-m2-her',
+  model: MODELS.chat,
   maxTokens: 1024,
   maxRetries: 2,
   retryDelayMs: 1000,
@@ -36,22 +34,8 @@ export class ClaudeApiError extends Error {
 
 // ============ Client Management ============
 
-// OpenRouter client with Anthropic SDK compatibility
-const client = new Anthropic({
-  baseURL: 'https://openrouter.ai/api',
-  apiKey: OPENROUTER_API_KEY,
-  defaultHeaders: {
-    'HTTP-Referer': 'https://datapractice.app',
-    'X-Title': 'Data Practice App',
-  },
-});
-
 function getClient(): Anthropic {
-  return client;
-}
-
-export function resetClient(): void {
-  // No-op: client is now statically configured
+  return getAnthropicClient();
 }
 
 // ============ JSON Parsing ============
@@ -249,16 +233,16 @@ export async function evaluateAnswer(
       }
 
       return parsed;
-    } catch (error: any) {
+    } catch (error) {
       // Map Anthropic errors to our error types
-      if (error.status === 429) {
+      if (hasStatus(error) && error.status === 429) {
         throw new ClaudeApiError(
           'Rate limit exceeded. Please wait a moment.',
           'RATE_LIMIT',
           true
         );
       }
-      if (error.status === 401) {
+      if (hasStatus(error) && error.status === 401) {
         throw new ClaudeApiError(
           'Authentication failed. Please contact support.',
           'AUTH_ERROR',
@@ -266,12 +250,12 @@ export async function evaluateAnswer(
         );
       }
       if (
-        error.code === 'ECONNABORTED' ||
-        error.message?.includes('timeout')
+        hasErrorCode(error, 'ECONNABORTED') ||
+        errorContains(error, 'timeout')
       ) {
         throw new ClaudeApiError('Request timed out', 'TIMEOUT', true);
       }
-      if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
+      if (hasErrorCode(error, 'ENOTFOUND') || hasErrorCode(error, 'ECONNREFUSED')) {
         throw new ClaudeApiError(
           'Network error. Check your connection.',
           'NETWORK',
@@ -281,7 +265,7 @@ export async function evaluateAnswer(
       if (error instanceof ClaudeApiError) {
         throw error;
       }
-      throw new ClaudeApiError(`API error: ${error.message}`, 'UNKNOWN', true);
+      throw new ClaudeApiError(`API error: ${getErrorMessage(error)}`, 'UNKNOWN', true);
     }
   });
 }
@@ -343,16 +327,3 @@ export async function generateQuestions(
   });
 }
 
-export async function testConnection(): Promise<boolean> {
-  try {
-    const anthropic = getClient();
-    await anthropic.messages.create({
-      model: API_CONFIG.model,
-      max_tokens: 10,
-      messages: [{ role: 'user', content: 'Say "ok"' }],
-    });
-    return true;
-  } catch {
-    return false;
-  }
-}

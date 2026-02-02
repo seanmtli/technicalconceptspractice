@@ -1,12 +1,9 @@
-import Constants from 'expo-constants';
 import { OnboardingMessage, OnboardingSuggestion, Category, Difficulty } from '../types';
-
-// OpenRouter Configuration - API key loaded from environment variables
-const OPENROUTER_API_KEY = Constants.expoConfig?.extra?.openRouterApiKey ?? '';
+import { logger } from '../utils/logger';
+import { API_BASE_URL, MODELS, getRequestHeaders } from './apiClient';
 
 const API_CONFIG = {
-  baseUrl: 'https://openrouter.ai/api/v1/chat/completions',
-  model: 'minimax/minimax-m2-her',
+  model: MODELS.chat,
   maxTokens: 1024,
 };
 
@@ -65,7 +62,7 @@ Respond ONLY with valid JSON in this exact format:
   }
 }
 
-Valid categories (use exact strings): "statistics", "machine-learning", "python-pandas", "sql", "ab-testing", "visualization", "feature-engineering"
+Valid categories (use exact strings): "statistics", "machine-learning", "python-pandas", "sql", "ab-testing", "visualization", "feature-engineering", "llm-fundamentals", "ml-infrastructure", "data-platforms", "fundamentals", "devops"
 Valid difficulties: "beginner", "intermediate", "advanced"
 
 Guidelines:
@@ -86,14 +83,9 @@ interface ChatMessage {
 }
 
 async function callOpenRouter(messages: ChatMessage[]): Promise<string> {
-  const response = await fetch(API_CONFIG.baseUrl, {
+  const response = await fetch(API_BASE_URL, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-      'HTTP-Referer': 'https://datapractice.app',
-      'X-Title': 'Data Practice App',
-    },
+    headers: getRequestHeaders(),
     body: JSON.stringify({
       model: API_CONFIG.model,
       max_tokens: API_CONFIG.maxTokens,
@@ -114,10 +106,6 @@ async function callOpenRouter(messages: ChatMessage[]): Promise<string> {
 
   const data = await response.json();
   return data.choices?.[0]?.message?.content ?? '';
-}
-
-export function resetOnboardingClient(): void {
-  // No-op: using fetch directly
 }
 
 // ============ Main Functions ============
@@ -187,6 +175,11 @@ export async function extractPreferencesFromConversation(
       'ab-testing',
       'visualization',
       'feature-engineering',
+      'llm-fundamentals',
+      'ml-infrastructure',
+      'data-platforms',
+      'fundamentals',
+      'devops',
     ];
 
     const validDifficulties: Difficulty[] = ['beginner', 'intermediate', 'advanced'];
@@ -215,9 +208,9 @@ export async function extractPreferencesFromConversation(
       suggestedCategories: suggestedCategories.length > 0 ? suggestedCategories : validCategories.slice(0, 4),
       suggestedDifficulties,
     };
-  } catch (error: any) {
+  } catch (error) {
     // Return sensible defaults on error
-    console.error('Failed to extract preferences:', error);
+    logger.error('Failed to extract preferences', error);
     return {
       reasoning: 'Based on your responses, here are balanced recommendations to get you started.',
       suggestedCategories: ['statistics', 'python-pandas', 'sql', 'machine-learning'],

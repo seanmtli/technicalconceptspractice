@@ -120,7 +120,7 @@ export default function PreferencesReviewScreen({ navigation, route }: Props) {
         type: 'SET_ONBOARDING_COMPLETE',
         payload: { completed: true, preferences },
       });
-    } catch (error: any) {
+    } catch {
       Alert.alert('Error', 'Failed to save preferences. Please try again.');
       setIsSaving(false);
     }

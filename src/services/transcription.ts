@@ -1,14 +1,11 @@
 import * as FileSystem from 'expo-file-system';
-import Constants from 'expo-constants';
+import { getErrorMessage } from '../utils/errors';
+import { API_BASE_URL, MODELS, getRequestHeaders } from './apiClient';
 
 // ============ Configuration ============
 
-// OpenRouter Configuration - API key loaded from environment variables
-const OPENROUTER_API_KEY = Constants.expoConfig?.extra?.openRouterApiKey ?? '';
-
 const TRANSCRIPTION_CONFIG = {
-  apiUrl: 'https://openrouter.ai/api/v1/chat/completions',
-  model: 'mistralai/voxtral-small-24b-2507',
+  model: MODELS.transcription,
   maxFileSizeMb: 100, // Voxtral supports up to 30 min audio
 };
 
@@ -98,14 +95,9 @@ export async function transcribeAudio(audioUri: string): Promise<string> {
     };
 
     // Make API request to OpenRouter
-    const response = await fetch(TRANSCRIPTION_CONFIG.apiUrl, {
+    const response = await fetch(API_BASE_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        'HTTP-Referer': 'https://datapractice.app',
-        'X-Title': 'Data Practice App',
-      },
+      headers: getRequestHeaders(),
       body: JSON.stringify(requestBody),
     });
 
@@ -145,33 +137,12 @@ export async function transcribeAudio(audioUri: string): Promise<string> {
     }
 
     return transcription.trim();
-  } catch (error: any) {
+  } catch (error) {
     if (error instanceof TranscriptionError) throw error;
     throw new TranscriptionError(
-      `Transcription failed: ${error.message}`,
+      `Transcription failed: ${getErrorMessage(error)}`,
       'API_ERROR'
     );
   }
 }
 
-// ============ Utilities ============
-
-/**
- * Estimate transcription cost
- * Voxtral via OpenRouter: ~$0.10/M input tokens + audio tokens
- * Roughly $0.001 per minute of audio
- */
-export function estimateCost(durationMs: number): number {
-  const minutes = durationMs / 60000;
-  return minutes * 0.001;
-}
-
-/**
- * Format cost for display
- */
-export function formatCost(cost: number): string {
-  if (cost < 0.01) {
-    return '< $0.01';
-  }
-  return `$${cost.toFixed(2)}`;
-}

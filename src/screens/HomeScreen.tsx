@@ -13,6 +13,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useApp, useCanPractice } from '../context/AppContext';
+import { logger } from '../utils/logger';
 import {
   getDueCardCount,
   getUserStats,
@@ -56,7 +57,7 @@ export default function HomeScreen({ navigation }: Props) {
       setWeeklyReviews(weekReviews);
       setWeeklyAvgScore(weekAvg);
     } catch (error) {
-      console.error('Failed to load home data:', error);
+      logger.error('Failed to load home data', error);
     }
   }, []);
 
@@ -78,7 +79,7 @@ export default function HomeScreen({ navigation }: Props) {
       const sessionId = await startPracticeSession(10);
       navigation.navigate('Practice', { sessionId });
     } catch (error) {
-      console.error('Failed to start practice session:', error);
+      logger.error('Failed to start practice session', error);
     }
   };
 
@@ -90,25 +91,6 @@ export default function HomeScreen({ navigation }: Props) {
         <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
       }
     >
-      {/* API Key Warning Banner */}
-      {!state.hasClaudeApiKey && (
-        <Banner
-          visible
-          icon="key"
-          actions={[
-            {
-              label: 'Go to Settings',
-              onPress: () => {
-                // Navigate to settings tab
-              },
-            },
-          ]}
-        >
-          API key required. Add your Claude API key in Settings to start
-          practicing.
-        </Banner>
-      )}
-
       {/* Offline Banner */}
       {!state.isOnline && (
         <Banner visible icon="wifi-off" actions={[]}>

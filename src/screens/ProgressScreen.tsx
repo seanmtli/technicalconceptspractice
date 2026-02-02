@@ -13,6 +13,7 @@ import {
 import { CATEGORIES, getCategoryColor } from '../constants/categories';
 import { SPACING } from '../constants/theme';
 import { UserStats, CategoryStats, ConceptGap, PracticeSession } from '../types';
+import { logger } from '../utils/logger';
 
 export default function ProgressScreen() {
   const [stats, setStats] = useState<UserStats | null>(null);
@@ -34,7 +35,7 @@ export default function ProgressScreen() {
       setConceptGaps(gaps);
       setRecentSessions(sessions);
     } catch (error) {
-      console.error('Failed to load progress data:', error);
+      logger.error('Failed to load progress data', error);
     }
   }, []);
 

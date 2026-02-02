@@ -58,19 +58,6 @@ export function calculateNextReview(
 }
 
 /**
- * Create initial schedule for a new card
- */
-export function createInitialSchedule(questionId: string): CardSchedule {
-  return {
-    questionId,
-    nextReviewDate: new Date().toISOString(),
-    easeFactor: 2.5,
-    interval: 0,
-    repetitions: 0,
-  };
-}
-
-/**
  * Get human-readable next review text
  */
 export function getNextReviewText(schedule: CardSchedule): string {

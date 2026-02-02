@@ -1,5 +1,6 @@
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
+import { getErrorMessage } from '../utils/errors';
 
 // ============ Configuration ============
 
@@ -103,9 +104,9 @@ export async function startRecording(): Promise<void> {
 
     currentRecording = recording;
     recordingStartTime = Date.now();
-  } catch (error: any) {
+  } catch (error) {
     throw new AudioRecordingError(
-      `Failed to start recording: ${error.message}`,
+      `Failed to start recording: ${getErrorMessage(error)}`,
       'HARDWARE_ERROR'
     );
   }
@@ -144,13 +145,13 @@ export async function stopRecording(): Promise<{
     recordingStartTime = null;
 
     return { uri, durationMs };
-  } catch (error: any) {
+  } catch (error) {
     currentRecording = null;
     recordingStartTime = null;
 
     if (error instanceof AudioRecordingError) throw error;
     throw new AudioRecordingError(
-      `Failed to stop recording: ${error.message}`,
+      `Failed to stop recording: ${getErrorMessage(error)}`,
       'HARDWARE_ERROR'
     );
   }
@@ -192,10 +193,6 @@ export function isRecording(): boolean {
 export function getRecordingDuration(): number {
   if (!recordingStartTime) return 0;
   return Date.now() - recordingStartTime;
-}
-
-export function getMaxDuration(): number {
-  return MAX_DURATION_MS;
 }
 
 // ============ Utilities ============

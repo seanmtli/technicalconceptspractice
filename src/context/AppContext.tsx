@@ -7,16 +7,14 @@ import React, {
   ReactNode,
 } from 'react';
 import NetInfo from '@react-native-community/netinfo';
-import { getApiKey, getWhisperApiKey } from '../services/storage';
 import { getDatabase, getUserPreferences, hasCompletedOnboarding } from '../services/database';
 import { AppState, AppAction, UserPreferences } from '../types';
+import { logger } from '../utils/logger';
 
 // ============ Initial State ============
 
 const initialState: AppState = {
   isOnline: true,
-  hasClaudeApiKey: false,
-  hasWhisperApiKey: false,
   isInitialized: false,
   currentSessionId: null,
   hasCompletedOnboarding: false,
@@ -29,12 +27,6 @@ function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
     case 'SET_ONLINE':
       return { ...state, isOnline: action.payload };
-    case 'SET_API_KEYS':
-      return {
-        ...state,
-        hasClaudeApiKey: action.payload.claude,
-        hasWhisperApiKey: action.payload.whisper,
-      };
     case 'SET_INITIALIZED':
       return { ...state, isInitialized: true };
     case 'SET_SESSION':
@@ -60,7 +52,6 @@ function appReducer(state: AppState, action: AppAction): AppState {
 interface AppContextValue {
   state: AppState;
   dispatch: React.Dispatch<AppAction>;
-  refreshApiKeyStatus: () => Promise<void>;
   refreshOnboardingState: () => Promise<void>;
 }
 
@@ -83,21 +74,6 @@ export function AppProvider({ children }: AppProviderProps) {
     return () => unsubscribe();
   }, []);
 
-  // Check API keys
-  const refreshApiKeyStatus = useCallback(async () => {
-    const [claudeKey, whisperKey] = await Promise.all([
-      getApiKey(),
-      getWhisperApiKey(),
-    ]);
-    dispatch({
-      type: 'SET_API_KEYS',
-      payload: {
-        claude: !!claudeKey,
-        whisper: !!whisperKey,
-      },
-    });
-  }, []);
-
   // Load onboarding state
   const loadOnboardingState = useCallback(async () => {
     try {
@@ -108,7 +84,7 @@ export function AppProvider({ children }: AppProviderProps) {
         payload: { completed, preferences },
       });
     } catch (error) {
-      console.error('Failed to load onboarding state:', error);
+      logger.error('Failed to load onboarding state', error);
     }
   }, []);
 
@@ -119,26 +95,23 @@ export function AppProvider({ children }: AppProviderProps) {
         // Initialize database (creates tables and seeds data if needed)
         await getDatabase();
 
-        // Check API keys
-        await refreshApiKeyStatus();
-
         // Load onboarding state
         await loadOnboardingState();
 
         // Mark as initialized
         dispatch({ type: 'SET_INITIALIZED' });
       } catch (error) {
-        console.error('Failed to initialize app:', error);
+        logger.error('Failed to initialize app', error);
         // Still mark as initialized so app doesn't hang
         dispatch({ type: 'SET_INITIALIZED' });
       }
     }
 
     initialize();
-  }, [refreshApiKeyStatus, loadOnboardingState]);
+  }, [loadOnboardingState]);
 
   return (
-    <AppContext.Provider value={{ state, dispatch, refreshApiKeyStatus, refreshOnboardingState: loadOnboardingState }}>
+    <AppContext.Provider value={{ state, dispatch, refreshOnboardingState: loadOnboardingState }}>
       {children}
     </AppContext.Provider>
   );
@@ -161,20 +134,11 @@ export function useIsOnline(): boolean {
   return state.isOnline;
 }
 
-export function useHasApiKey(): boolean {
-  const { state } = useApp();
-  return state.hasClaudeApiKey;
-}
-
 export function useCanPractice(): { canPractice: boolean; reason: string | null } {
   const { state } = useApp();
 
   if (!state.isOnline) {
     return { canPractice: false, reason: 'No internet connection' };
-  }
-
-  if (!state.hasClaudeApiKey) {
-    return { canPractice: false, reason: 'API key not configured' };
   }
 
   return { canPractice: true, reason: null };

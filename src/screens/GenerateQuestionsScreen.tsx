@@ -11,12 +11,12 @@ import {
 } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import { useApp } from '../context/AppContext';
 import { generateQuestions, ClaudeApiError } from '../services/claudeApi';
 import { addQuestion } from '../services/database';
 import { CATEGORIES, getCategoryColor } from '../constants/categories';
 import { SPACING } from '../constants/theme';
 import { QuestionsStackParamList, GeneratedQuestion, Category, Difficulty } from '../types';
+import { getSuggestedSubTopics } from '../services/knowledgeEnhancer';
 
 type GenerateQuestionsScreenNavigationProp = NativeStackNavigationProp<
   QuestionsStackParamList,
@@ -28,8 +28,6 @@ interface Props {
 }
 
 export default function GenerateQuestionsScreen({ navigation }: Props) {
-  const { state } = useApp();
-
   const [category, setCategory] = useState<Category>('statistics');
   const [difficulty, setDifficulty] = useState<Difficulty>('intermediate');
   const [subTopic, setSubTopic] = useState('');
@@ -39,11 +37,6 @@ export default function GenerateQuestionsScreen({ navigation }: Props) {
   const [isSaving, setIsSaving] = useState(false);
 
   const handleGenerate = async () => {
-    if (!state.hasClaudeApiKey) {
-      Alert.alert('API Key Required', 'Please add your Claude API key in Settings first.');
-      return;
-    }
-
     setIsGenerating(true);
     setGeneratedQuestions([]);
 
@@ -52,10 +45,11 @@ export default function GenerateQuestionsScreen({ navigation }: Props) {
         CATEGORIES.find((c) => c.id === category)?.label ?? category,
         difficulty,
         subTopic || null,
-        parseInt(count, 10) || 3
+        parseInt(count, 10) || 3,
+        category // Pass category ID for knowledge enhancement
       );
       setGeneratedQuestions(questions);
-    } catch (error: any) {
+    } catch (error) {
       Alert.alert(
         'Generation Failed',
         error instanceof ClaudeApiError ? error.message : 'Failed to generate questions'
@@ -64,6 +58,9 @@ export default function GenerateQuestionsScreen({ navigation }: Props) {
       setIsGenerating(false);
     }
   };
+
+  // Get suggested sub-topics for the selected category
+  const suggestedTopics = getSuggestedSubTopics(category);
 
   const handleSaveAll = async () => {
     if (generatedQuestions.length === 0) return;
@@ -141,6 +138,25 @@ export default function GenerateQuestionsScreen({ navigation }: Props) {
             placeholder="e.g., decision trees, p-values"
             style={styles.input}
           />
+          {suggestedTopics.length > 0 && (
+            <View style={styles.suggestedContainer}>
+              <Text variant="labelSmall" style={styles.suggestedLabel}>
+                Suggested topics:
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                {suggestedTopics.slice(0, 5).map((topic, index) => (
+                  <Chip
+                    key={index}
+                    compact
+                    onPress={() => setSubTopic(topic)}
+                    style={styles.suggestedChip}
+                  >
+                    {topic}
+                  </Chip>
+                ))}
+              </ScrollView>
+            </View>
+          )}
 
           <Text variant="titleMedium" style={styles.label}>
             Number of Questions
@@ -162,17 +178,11 @@ export default function GenerateQuestionsScreen({ navigation }: Props) {
             mode="contained"
             onPress={handleGenerate}
             loading={isGenerating}
-            disabled={isGenerating || !state.hasClaudeApiKey}
+            disabled={isGenerating}
             style={styles.generateButton}
           >
             {isGenerating ? 'Generating...' : 'Generate Questions'}
           </Button>
-
-          {!state.hasClaudeApiKey && (
-            <Text style={styles.warningText}>
-              Add your Claude API key in Settings to generate questions.
-            </Text>
-          )}
         </Card.Content>
       </Card>
 
@@ -252,15 +262,21 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   input: {
+    marginBottom: SPACING.xs,
+  },
+  suggestedContainer: {
     marginBottom: SPACING.sm,
+  },
+  suggestedLabel: {
+    color: '#666',
+    marginBottom: SPACING.xs,
+  },
+  suggestedChip: {
+    marginRight: SPACING.xs,
+    backgroundColor: '#E3F2FD',
   },
   generateButton: {
     marginTop: SPACING.md,
-  },
-  warningText: {
-    marginTop: SPACING.sm,
-    color: '#F44336',
-    textAlign: 'center',
   },
   loadingContainer: {
     padding: SPACING.xl,

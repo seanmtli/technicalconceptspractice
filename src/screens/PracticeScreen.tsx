@@ -52,6 +52,7 @@ import {
   AIEvaluationResponse,
   CardSchedule,
 } from '../types';
+import { getErrorMessage } from '../utils/errors';
 
 type PracticeScreenNavigationProp = NativeStackNavigationProp<
   HomeStackParamList,
@@ -182,11 +183,11 @@ export default function PracticeScreen({ navigation, route }: Props) {
       setCardsReviewed((prev) => prev + 1);
       setScores((prev) => [...prev, feedback.score]);
       setPracticeState({ status: 'feedback', question, feedback });
-    } catch (error: any) {
+    } catch (error) {
       const isRetryable = error instanceof ClaudeApiError && error.retryable;
       setPracticeState({
         status: 'error',
-        error: error.message || 'Evaluation failed',
+        error: getErrorMessage(error) || 'Evaluation failed',
         retryable: isRetryable,
       });
     }
@@ -199,8 +200,8 @@ export default function PracticeScreen({ navigation, route }: Props) {
       await startRecording();
       setPracticeState({ status: 'recording', question: practiceState.question });
       setRecordingDuration(0);
-    } catch (error: any) {
-      Alert.alert('Recording Error', error.message);
+    } catch (error) {
+      Alert.alert('Recording Error', getErrorMessage(error));
     }
   };
 
@@ -229,10 +230,10 @@ export default function PracticeScreen({ navigation, route }: Props) {
       setCardsReviewed((prev) => prev + 1);
       setScores((prev) => [...prev, feedback.score]);
       setPracticeState({ status: 'feedback', question, feedback });
-    } catch (error: any) {
+    } catch (error) {
       setPracticeState({
         status: 'error',
-        error: error.message || 'Processing failed',
+        error: getErrorMessage(error) || 'Processing failed',
         retryable: true,
       });
     }

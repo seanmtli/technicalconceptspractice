@@ -15,6 +15,7 @@ import { getAllQuestions } from '../services/database';
 import { CATEGORIES, getCategoryColor, getDifficultyColor } from '../constants/categories';
 import { SPACING } from '../constants/theme';
 import { QuestionsStackParamList, Question, Category, Difficulty } from '../types';
+import { logger } from '../utils/logger';
 
 type QuestionBankScreenNavigationProp = NativeStackNavigationProp<
   QuestionsStackParamList,
@@ -37,7 +38,7 @@ export default function QuestionBankScreen({ navigation }: Props) {
       const allQuestions = await getAllQuestions();
       setQuestions(allQuestions);
     } catch (error) {
-      console.error('Failed to load questions:', error);
+      logger.error('Failed to load questions', error);
     }
   }, []);
 
