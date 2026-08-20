@@ -50,7 +50,8 @@ Scoring Guide (STRICT):
 The "missedConcepts" array should contain concepts from the expected list that were missing or incorrect. If the answer is excellent, this should be an empty array.
 "goDeeper" must only contain articles from the Reference Articles list above that are relevant to what the candidate should study next; empty array if none listed or none relevant.
 
-Be direct about errors. Don't soften criticism. The goal is real understanding, not comfort.`;
+Be direct about errors. Don't soften criticism. The goal is real understanding, not comfort.
+Write all feedback as plain text — no markdown, no asterisks, no headers.`;
 
 export const CONTEXTUAL_EVALUATION_PROMPT = `You are a senior engineer evaluating how well a candidate reasons about the RELATIONSHIP between technical concepts, or applies them to a scenario. There is no single right answer — grade the quality of reasoning.
 
@@ -92,7 +93,8 @@ Scoring Guide:
 
 "goDeeper" must only contain articles from the Reference Articles list above; empty array if none listed or none relevant.
 
-Be direct. The goal is real understanding, not comfort.`;
+Be direct. The goal is real understanding, not comfort.
+Write all feedback as plain text — no markdown, no asterisks, no headers.`;
 
 export const CONTEXTUAL_GENERATION_PROMPT = `You are an expert technical educator. Create ONE practice question that connects concepts the learner is weak on, or applies them to a realistic scenario.
 
