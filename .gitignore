@@ -1,48 +1,30 @@
-# Dependencies
-node_modules/
+# dependencies
+/node_modules
 
-# Expo
-.expo/
-dist/
-web-build/
+# next.js
+/.next/
+/out/
+/build
 
-# Native builds
-*.orig.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
+# env files
+.env*
+!.env.example
 
-# Metro
-.metro-health-check*
+# testing
+/coverage
 
-# Debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
-
-# macOS
+# misc
 .DS_Store
 *.pem
-
-# Local env files
-.env*.local
-.env
-
-# TypeScript
+*.log
+.vercel
 *.tsbuildinfo
+next-env.d.ts
 
-# Testing
-coverage/
+# crawl cache (scripts/crawl-sources.ts)
+/scratch/
 
 # IDE
 .idea/
 .vscode/
 *.swp
-*.swo
-
-# Temporary files
-*.log
-tmp/
-temp/
