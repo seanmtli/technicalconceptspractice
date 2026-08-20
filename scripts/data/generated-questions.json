@@ -1,0 +1,651 @@
+[
+  {
+    "prompt": "Explain what frontend and backend mean in software development and why understanding this distinction matters when building applications.",
+    "difficulty": "beginner",
+    "keyConcepts": [
+      "Frontend is the user-facing interface that runs in the browser or client device",
+      "Backend handles data processing, business logic, and database operations on servers",
+      "The distinction becomes critical for maintenance and scaling decisions",
+      "Understanding the separation helps when using AI tools to generate code for the right layer"
+    ],
+    "category": "system-design",
+    "mode": "drill"
+  },
+  {
+    "prompt": "Explain the difference between RAGs and Agents as patterns for working with LLMs, and when you would choose one over the other.",
+    "difficulty": "beginner",
+    "keyConcepts": [
+      "RAGs retrieve and inject relevant documents into LLM context to ground answers in specific information",
+      "Agents use LLMs in a reasoning loop to decide what actions to take using tools",
+      "RAGs are appropriate when the task is finding answers within existing documents",
+      "Agents are needed when the LLM must perform actions on external systems"
+    ],
+    "category": "system-design",
+    "mode": "drill"
+  },
+  {
+    "prompt": "Walk through how 'computer use agents' interact with operating systems and explain why structured input is generally preferred over screenshot analysis.",
+    "difficulty": "beginner",
+    "keyConcepts": [
+      "Agents can use screenshot-based vision, accessibility tree parsing, or hybrid approaches",
+      "Screenshot analysis requires the model to interpret pixels and visual layouts",
+      "Structured input like accessibility trees provides pre-parsed semantic information",
+      "Structured approaches are more efficient because they reduce the parsing burden on the model"
+    ],
+    "category": "system-design",
+    "mode": "drill"
+  },
+  {
+    "prompt": "Explain why major platforms like Meta, LinkedIn, and YouTube are shifting from engagement-based to semantic understanding for content retrieval, and what architectural component enables this.",
+    "difficulty": "intermediate",
+    "keyConcepts": [
+      "Engagement-based retrieval rewards clickbait that generates interactions without satisfaction",
+      "Semantic understanding matches content meaning to user intent rather than just past clicks",
+      "Embeddings are the key technology that captures semantic meaning of both content and user interests",
+      "This shift requires language models that can understand content beyond surface-level signals"
+    ],
+    "category": "system-design",
+    "mode": "drill"
+  },
+  {
+    "prompt": "Explain why DoorDash, Instacart, and Uber Eats all integrated LLMs into search differently despite solving similar problems, and what this reveals about system design decisions.",
+    "difficulty": "intermediate",
+    "keyConcepts": [
+      "All three companies faced similar search problems but had different existing architectures",
+      "The key decision was how deeply to integrate the LLM into the runtime path",
+      "Pre-existing infrastructure heavily influences optimal integration strategy",
+      "There is no one-size-fits-all approach; architectural decisions must account for legacy systems"
+    ],
+    "category": "system-design",
+    "mode": "drill"
+  },
+  {
+    "prompt": "Explain the core architectural approach that makes production AI agents reliable, including where deterministic code should be used versus where LLMs should be invoked.",
+    "difficulty": "intermediate",
+    "keyConcepts": [
+      "Reliable agents primarily use deterministic code for control flow and business logic",
+      "LLMs should only be invoked at specific decision points, not for entire workflows",
+      "State should be maintained in external software, keeping the model stateless",
+      "Control flow needs escape hatches and deterministic logic to handle edge cases"
+    ],
+    "category": "system-design",
+    "mode": "drill"
+  },
+  {
+    "prompt": "Explain how Databricks redesigned their rate limiting system to improve performance and what tradeoffs they accepted to achieve this.",
+    "difficulty": "intermediate",
+    "keyConcepts": [
+      "The original system used Redis with synchronous checks that added latency to the critical path",
+      "The new design uses in-memory sharding with optimistic batch reporting",
+      "They traded strict accuracy for significantly reduced tail latency",
+      "Asynchronous reporting moves work off the critical path enabling horizontal scaling"
+    ],
+    "category": "system-design",
+    "mode": "drill"
+  },
+  {
+    "prompt": "Explain GitHub's security architecture for Agentic Workflows and why they designed it assuming agents are already compromised.",
+    "difficulty": "advanced",
+    "keyConcepts": [
+      "The architecture assumes agents will be compromised rather than trying to prevent all attacks",
+      "Focus shifts to damage containment through layered security controls",
+      "Secrets are isolated from agent access to limit blast radius",
+      "Deterministic output vetting ensures agent outputs are validated before affecting systems"
+    ],
+    "category": "system-design",
+    "mode": "drill"
+  },
+  {
+    "prompt": "Explain how Roblox's Super Upsampler architecture combines a game engine with a world model, and why this hybrid approach solves problems that neither technology could handle alone.",
+    "difficulty": "advanced",
+    "keyConcepts": [
+      "The game engine maintains game state, physics, and multiplayer consistency",
+      "The world model (Super Upsampler) focuses solely on rendering photorealistic visuals",
+      "Game engines alone cannot achieve photorealism; world models alone cannot maintain game consistency",
+      "This division of labor allows each component to specialize in what it does best"
+    ],
+    "category": "system-design",
+    "mode": "drill"
+  },
+  {
+    "prompt": "Explain how LinkedIn replaced their complex Feed architecture with a single LLM and what technical innovations made this possible despite the massive scale.",
+    "difficulty": "advanced",
+    "keyConcepts": [
+      "The old system required multiple specialized models and complex coordination",
+      "A single LLM retrieval model could understand content relevance holistically",
+      "They developed techniques to feed structured data into LLMs effectively",
+      "Sequential recommender treats user engagement as a story rather than isolated events"
+    ],
+    "category": "system-design",
+    "mode": "drill"
+  },
+  {
+    "prompt": "Explain how context engineering addresses the 'lost in the middle' problem and why simply providing more information to an LLM can degrade performance.",
+    "difficulty": "advanced",
+    "keyConcepts": [
+      "LLM architectures have limitations in how they process long contexts",
+      "Information in the middle of long contexts is often given less weight (lost in the middle)",
+      "Context rot occurs when too much information dilutes the relevance of key details",
+      "Strategies include selecting only relevant information, compressing data, and isolating context"
+    ],
+    "category": "system-design",
+    "mode": "drill"
+  },
+  {
+    "prompt": "Explain how CockroachDB's C-SPANN algorithm treats vector indexes differently from traditional approaches and what advantages this provides for distributed systems.",
+    "difficulty": "advanced",
+    "keyConcepts": [
+      "C-SPANN treats vector indexes as ordinary table data within CockroachDB",
+      "Traditional vector databases often require separate infrastructure and consistency models",
+      "Leveraging CockroachDB's existing distributed architecture provides automatic scalability and fault tolerance",
+      "This approach supports real-time transactional requirements without special-case infrastructure"
+    ],
+    "category": "system-design",
+    "mode": "drill"
+  },
+  {
+    "prompt": "Explain why standard RAG systems struggle with 'global' questions that span many documents, and how GraphRAG's approach specifically addresses this limitation.",
+    "difficulty": "beginner",
+    "keyConcepts": [
+      "Standard RAG relies on similarity search which retrieves specific chunks/passages best for 'local' questions",
+      "Global questions require synthesizing information across many documents rather than finding specific passages",
+      "GraphRAG builds a knowledge graph with hierarchical communities to organize relationships across documents",
+      "GraphRAG generates summarized reports at different hierarchy levels enabling comprehensive answers to broad questions"
+    ],
+    "category": "ai-agents",
+    "mode": "drill"
+  },
+  {
+    "prompt": "Walk through why the KV cache in LLMs becomes a memory bottleneck during the decoding phase, and explain how this differs from the prefill phase.",
+    "difficulty": "intermediate",
+    "keyConcepts": [
+      "KV cache stores key and value vectors for each token to avoid recomputing attention for previous tokens",
+      "Prefill phase is compute-bound, processing many tokens in parallel with smaller cache",
+      "Decoding phase is memory-bound, generating one token at a time while accessing the entire accumulated KV cache",
+      "Each new token requires reading the full cache (memory bandwidth bottleneck) making long contexts expensive"
+    ],
+    "category": "ai-agents",
+    "mode": "drill"
+  },
+  {
+    "prompt": "Explain the fundamental security vulnerability that makes LLMs susceptible to prompt injection attacks, and why this is harder to fix than traditional code injection.",
+    "difficulty": "intermediate",
+    "keyConcepts": [
+      "LLMs process instructions and data as an undifferentiated sequence of tokens without clear separation",
+      "Prompt injection exploits this by embedding malicious instructions within data that override intended behavior",
+      "Unlike traditional injection (SQL, code) where syntax separates code from data, LLMs use natural language for both",
+      "Defense-in-depth with system-level constraints is necessary since the model cannot reliably distinguish instructions from data"
+    ],
+    "category": "ai-agents",
+    "mode": "drill"
+  },
+  {
+    "prompt": "Describe how DoorDash, Instacart, and Uber Eats each approached LLM integration into search differently, and explain what this tells us about choosing an AI architecture.",
+    "difficulty": "advanced",
+    "keyConcepts": [
+      "Each company faced similar search problems but had different existing infrastructure constraints",
+      "The key decision was how deeply to integrate the LLM into runtime (preprocessing vs real-time inference)",
+      "Different approaches ranged from LLM as preprocessing layer to fully integrated runtime component",
+      "Optimal LLM architecture depends heavily on pre-existing system architecture rather than one-size-fits-all solution"
+    ],
+    "category": "ai-agents",
+    "mode": "drill"
+  },
+  {
+    "prompt": "Explain the core difference between a RAG system and an Agent, and give an example scenario where you'd choose one over the other.",
+    "difficulty": "beginner",
+    "keyConcepts": [
+      "RAG retrieves and grounds answers in existing documents without taking actions",
+      "Agents use a reasoning loop to plan and execute actions on external systems through tools",
+      "RAG is for finding answers within documents (question-answering use case)",
+      "Agents are for performing tasks that require interacting with or modifying external systems"
+    ],
+    "category": "ai-agents",
+    "mode": "drill"
+  },
+  {
+    "prompt": "Walk through the core components of an AI agent's architecture and explain how they work together in an iterative loop.",
+    "difficulty": "beginner",
+    "keyConcepts": [
+      "LLM acts as the 'brain' that plans and makes decisions",
+      "Tools allow the agent to execute actions on external systems",
+      "Memory stores context and previous interactions to inform decisions",
+      "The agent iterates through plan-execute-observe cycles until task completion"
+    ],
+    "category": "ai-agents",
+    "mode": "drill"
+  },
+  {
+    "prompt": "Explain how Waymo and Tesla's fundamentally different approaches to sensing and world modeling reflect two distinct philosophies for building autonomous vehicles.",
+    "difficulty": "intermediate",
+    "keyConcepts": [
+      "Waymo uses multi-sensor approach (Lidar, cameras, radar) while Tesla relies on pure vision",
+      "Waymo emphasizes explicit, readable world models that are interpretable",
+      "Tesla uses learned representations where the model internally learns world structure",
+      "Both depend on ML but differ on whether world understanding should be explicit or implicit"
+    ],
+    "category": "ai-agents",
+    "mode": "drill"
+  },
+  {
+    "prompt": "Describe the concept of 'smarter routing' for LLM agents and explain the architectural pattern that makes it effective for cost control.",
+    "difficulty": "intermediate",
+    "keyConcepts": [
+      "Smarter routing sends requests to the cheapest model capable of handling the task complexity",
+      "Most requests are routine and can be handled by cheaper models without quality loss",
+      "Requires a centralized entry point that classifies request complexity before routing",
+      "Can achieve 40-70% cost savings by routing majority of simple tasks to less expensive models"
+    ],
+    "category": "ai-agents",
+    "mode": "drill"
+  },
+  {
+    "prompt": "Explain why knowledge distillation using 'soft labels' from a teacher model often produces better student models than training on 'hard labels' alone.",
+    "difficulty": "advanced",
+    "keyConcepts": [
+      "Hard labels provide only the correct answer (one-hot encoding) with no additional information",
+      "Soft labels show the teacher's probability distribution across all possible answers",
+      "The probability distribution reveals relationships and similarities between classes",
+      "Student learns not just what's correct but why, including the teacher's uncertainty and reasoning patterns"
+    ],
+    "category": "ai-agents",
+    "mode": "drill"
+  },
+  {
+    "prompt": "Walk through the challenges Grab's data engineering team faced when deploying their multi-agent system to production, and explain how they addressed them.",
+    "difficulty": "advanced",
+    "keyConcepts": [
+      "Context overflow occurred when agents accumulated too much information across interactions",
+      "Tool bloat happened as the system gained access to too many tools causing decision paralysis",
+      "Solutions included implementing context management strategies and limiting tool access per agent",
+      "Required continuous learning loop with human oversight to refine agent behavior based on production failures"
+    ],
+    "category": "ai-agents",
+    "mode": "drill"
+  },
+  {
+    "prompt": "Explain the best practice that production AI agents should be primarily deterministic code with LLMs only at specific decision points, and why this matters for reliability.",
+    "difficulty": "intermediate",
+    "keyConcepts": [
+      "Deterministic code provides predictable, testable control flow that's easier to debug",
+      "LLMs should be invoked only where genuine decision-making or natural language understanding is needed",
+      "Over-reliance on LLMs for control flow creates unpredictable behavior and harder-to-diagnose failures",
+      "Separation allows for escape hatches and fallback mechanisms when LLM decisions are uncertain"
+    ],
+    "category": "ai-agents",
+    "mode": "drill"
+  },
+  {
+    "prompt": "Describe how LinkedIn transformed their Feed architecture with LLMs, and explain what specific problem they were solving with a 'sequential recommender' approach.",
+    "difficulty": "advanced",
+    "keyConcepts": [
+      "LinkedIn replaced complex multi-system architecture with a single LLM-powered retrieval model",
+      "Sequential recommender treats user engagement as a story/sequence rather than isolated events",
+      "This captures temporal patterns and context about how users interact with content over time",
+      "Required innovative techniques to feed structured engagement data into LLMs and filter noisy training signals"
+    ],
+    "category": "ai-agents",
+    "mode": "drill"
+  },
+  {
+    "prompt": "How does the context assembly strategy in OpenAI's data agent relate to the context engineering practices recommended for AI-native engineers?",
+    "category": "ai-agents",
+    "difficulty": "intermediate",
+    "keyConcepts": [
+      "context engineering",
+      "data agent architecture",
+      "context assembly",
+      "LLM effectiveness"
+    ],
+    "mode": "contextual"
+  },
+  {
+    "prompt": "If you were building a fraud detection system like Stripe's Radar but wanted to add LLM-based explanations for flagged transactions, how would you think about the latency budget given Radar's 100ms requirement?",
+    "category": "system-design",
+    "difficulty": "advanced",
+    "keyConcepts": [
+      "latency constraints",
+      "real-time inference",
+      "system architecture",
+      "LLM integration"
+    ],
+    "mode": "contextual"
+  },
+  {
+    "prompt": "How does GraphRAG's hierarchical community detection approach relate to the knowledge graph construction method used in Amazon's COSMO system?",
+    "category": "llm-fundamentals",
+    "difficulty": "intermediate",
+    "keyConcepts": [
+      "knowledge graphs",
+      "graph construction",
+      "semantic understanding",
+      "hierarchical organization"
+    ],
+    "mode": "contextual"
+  },
+  {
+    "prompt": "When deciding between a RAG system and an AI agent for a customer support application, how would you think about the distinction between retrieving documentation versus taking actions like creating support tickets?",
+    "category": "ai-agents",
+    "difficulty": "beginner",
+    "keyConcepts": [
+      "RAG vs agents",
+      "retrieval-augmented generation",
+      "tool use",
+      "action execution"
+    ],
+    "mode": "contextual"
+  },
+  {
+    "prompt": "How does Vercel's use of Firecracker microVMs for build isolation relate to GitHub's security architecture assumption that agents are compromised?",
+    "category": "ml-infrastructure",
+    "difficulty": "advanced",
+    "keyConcepts": [
+      "security isolation",
+      "multi-tenancy",
+      "untrusted code execution",
+      "defense in depth"
+    ],
+    "mode": "contextual"
+  },
+  {
+    "prompt": "If you're building a computer-use agent that needs to interact with both modern web applications and legacy desktop software, how would you think about choosing between screenshot-based vision and accessibility tree parsing?",
+    "category": "ai-agents",
+    "difficulty": "intermediate",
+    "keyConcepts": [
+      "computer use agents",
+      "input modalities",
+      "structured vs unstructured data",
+      "compatibility"
+    ],
+    "mode": "contextual"
+  },
+  {
+    "prompt": "How does the soft label concept in knowledge distillation relate to the training approach used when LinkedIn filtered noisy engagement data for its LLM-powered feed?",
+    "category": "machine-learning",
+    "difficulty": "intermediate",
+    "keyConcepts": [
+      "knowledge distillation",
+      "training data quality",
+      "soft labels",
+      "signal extraction"
+    ],
+    "mode": "contextual"
+  },
+  {
+    "prompt": "When implementing smarter routing to reduce token spend, how would you think about the tradeoff between routing complexity and the cost savings from using cheaper models?",
+    "category": "llm-fundamentals",
+    "difficulty": "beginner",
+    "keyConcepts": [
+      "cost optimization",
+      "model routing",
+      "complexity analysis",
+      "token spend management"
+    ],
+    "mode": "contextual"
+  },
+  {
+    "prompt": "How does the KV cache memory problem in LLMs relate to the warm cell pool strategy used by Vercel to reduce build wait times?",
+    "category": "ml-infrastructure",
+    "difficulty": "advanced",
+    "keyConcepts": [
+      "memory management",
+      "latency optimization",
+      "resource pooling",
+      "caching strategies"
+    ],
+    "mode": "contextual"
+  },
+  {
+    "prompt": "If you're building a multi-language chat system like Roblox's translator but for a food delivery app, how would you think about the latency requirements compared to Roblox's 100ms target?",
+    "category": "system-design",
+    "difficulty": "intermediate",
+    "keyConcepts": [
+      "latency requirements",
+      "real-time translation",
+      "user experience",
+      "system constraints"
+    ],
+    "mode": "contextual"
+  },
+  {
+    "prompt": "How does Waymo's explicit world model approach relate to the structured vs learned representations debate in AI system design?",
+    "category": "machine-learning",
+    "difficulty": "intermediate",
+    "keyConcepts": [
+      "world models",
+      "representation learning",
+      "interpretability",
+      "explicit vs implicit knowledge"
+    ],
+    "mode": "contextual"
+  },
+  {
+    "prompt": "When integrating LLMs into search like DoorDash, Instacart, and Uber Eats did, how would you think about whether to use runtime LLM calls versus offline embedding generation?",
+    "category": "system-design",
+    "difficulty": "advanced",
+    "keyConcepts": [
+      "LLM integration patterns",
+      "runtime vs offline processing",
+      "latency vs freshness",
+      "architecture decisions"
+    ],
+    "mode": "contextual"
+  },
+  {
+    "prompt": "How does the frontend-backend separation relate to the distinction between a language model (backend) and the harness/orchestration layer (frontend) in AI agents?",
+    "category": "ai-agents",
+    "difficulty": "beginner",
+    "keyConcepts": [
+      "system architecture",
+      "separation of concerns",
+      "LLM vs harness",
+      "frontend vs backend"
+    ],
+    "mode": "contextual"
+  },
+  {
+    "prompt": "If you're implementing Cloudflare's x402 protocol for AI agent payment, how would you think about the relationship between reverse proxy positioning and the ability to enforce payment before content access?",
+    "category": "system-design",
+    "difficulty": "intermediate",
+    "keyConcepts": [
+      "reverse proxy",
+      "edge computing",
+      "access control",
+      "protocol design"
+    ],
+    "mode": "contextual"
+  },
+  {
+    "prompt": "How does the Model Context Protocol (MCP) relate to the interoperability goals described in the GitHub, Vercel, and Replit developer platform strategies?",
+    "category": "ai-agents",
+    "difficulty": "intermediate",
+    "keyConcepts": [
+      "standardization",
+      "interoperability",
+      "tool integration",
+      "platform strategy"
+    ],
+    "mode": "contextual"
+  },
+  {
+    "prompt": "When building a production AI agent following best practices, how would you think about the balance between deterministic code and LLM invocations given the stateless model recommendation?",
+    "category": "ai-agents",
+    "difficulty": "intermediate",
+    "keyConcepts": [
+      "deterministic vs probabilistic",
+      "control flow",
+      "stateless design",
+      "reliability"
+    ],
+    "mode": "contextual"
+  },
+  {
+    "prompt": "How does CockroachDB's approach of treating vector indexes as ordinary table data relate to Nextdoor's database scaling ladder philosophy of earning complexity?",
+    "category": "data-platforms",
+    "difficulty": "advanced",
+    "keyConcepts": [
+      "data modeling",
+      "system complexity",
+      "distributed systems",
+      "scaling strategies"
+    ],
+    "mode": "contextual"
+  },
+  {
+    "prompt": "If Grab's data agent system experienced context overflow issues, how would you think about applying prefix caching techniques used in LLM serving to solve this problem?",
+    "category": "ml-infrastructure",
+    "difficulty": "advanced",
+    "keyConcepts": [
+      "context management",
+      "caching strategies",
+      "KV cache",
+      "production optimization"
+    ],
+    "mode": "contextual"
+  },
+  {
+    "prompt": "How does the distinction between TPU training chips (8t) and inference chips (8i) relate to the concept of throughput versus latency optimization in system design?",
+    "category": "ml-infrastructure",
+    "difficulty": "beginner",
+    "keyConcepts": [
+      "specialized hardware",
+      "throughput vs latency",
+      "training vs inference",
+      "optimization goals"
+    ],
+    "mode": "contextual"
+  },
+  {
+    "prompt": "When Meta and LinkedIn shifted from engagement-based to semantic understanding for fighting clickbait, how would you think about this relating to the implicit vs explicit intent problem that Amazon's COSMO addresses?",
+    "category": "machine-learning",
+    "difficulty": "intermediate",
+    "keyConcepts": [
+      "semantic understanding",
+      "intent modeling",
+      "engagement signals",
+      "representation learning"
+    ],
+    "mode": "contextual"
+  },
+  {
+    "prompt": "How does prompt injection in LLMs relate to the security concerns around executing untrusted user code that Vercel addressed with Firecracker?",
+    "category": "llm-fundamentals",
+    "difficulty": "intermediate",
+    "keyConcepts": [
+      "security threats",
+      "untrusted input",
+      "isolation",
+      "attack surfaces"
+    ],
+    "mode": "contextual"
+  },
+  {
+    "prompt": "If you're implementing Databricks' rate limiting approach for an LLM API gateway, how would you think about the tradeoff between strict accuracy and tail latency given the optimistic batch-reporting design?",
+    "category": "system-design",
+    "difficulty": "advanced",
+    "keyConcepts": [
+      "rate limiting",
+      "consistency vs performance",
+      "distributed systems",
+      "tail latency"
+    ],
+    "mode": "contextual"
+  },
+  {
+    "prompt": "How does Inkling's Mixture of Experts architecture relate to the routing problem described in smarter LLM routing for cost optimization?",
+    "category": "llm-fundamentals",
+    "difficulty": "intermediate",
+    "keyConcepts": [
+      "mixture of experts",
+      "model routing",
+      "computational efficiency",
+      "specialization"
+    ],
+    "mode": "contextual"
+  },
+  {
+    "prompt": "When NVIDIA co-designs hardware and models, how would you think about this relating to Tesla's pure vision approach versus Waymo's multi-sensor strategy in terms of vertical integration?",
+    "category": "machine-learning",
+    "difficulty": "advanced",
+    "keyConcepts": [
+      "hardware-software co-design",
+      "vertical integration",
+      "architectural choices",
+      "optimization strategies"
+    ],
+    "mode": "contextual"
+  },
+  {
+    "prompt": "How does GraphRAG's global search strategy relate to the sequential recommender approach that LinkedIn uses to understand user engagement as a story?",
+    "category": "machine-learning",
+    "difficulty": "intermediate",
+    "keyConcepts": [
+      "information synthesis",
+      "sequential modeling",
+      "holistic understanding",
+      "context aggregation"
+    ],
+    "mode": "contextual"
+  },
+  {
+    "prompt": "If you're building a system like Roblox's Super Upsampler that combines a game engine with a world model, how would you think about the division of responsibilities similar to frontend-backend separation?",
+    "category": "system-design",
+    "difficulty": "intermediate",
+    "keyConcepts": [
+      "hybrid architectures",
+      "separation of concerns",
+      "complementary technologies",
+      "task division"
+    ],
+    "mode": "contextual"
+  },
+  {
+    "prompt": "How does the specification-driven development practice for AI-native engineers relate to GitHub's approach of deterministic output vetting in their agentic workflows?",
+    "category": "ai-agents",
+    "difficulty": "intermediate",
+    "keyConcepts": [
+      "specification-driven development",
+      "verification",
+      "deterministic validation",
+      "AI oversight"
+    ],
+    "mode": "contextual"
+  },
+  {
+    "prompt": "When OpenAI's data agent manages 90,000 datasets across 1.5 exabytes, how would you think about this scale relating to the distributed architecture challenges CockroachDB faced with vector indexing?",
+    "category": "data-platforms",
+    "difficulty": "advanced",
+    "keyConcepts": [
+      "scale challenges",
+      "distributed systems",
+      "metadata management",
+      "data organization"
+    ],
+    "mode": "contextual"
+  },
+  {
+    "prompt": "How does the six-layer context assembly in OpenAI's data agent relate to the problem of limited context windows that GraphRAG addresses with hierarchical summarization?",
+    "category": "llm-fundamentals",
+    "difficulty": "intermediate",
+    "keyConcepts": [
+      "context management",
+      "information hierarchy",
+      "context assembly",
+      "summarization strategies"
+    ],
+    "mode": "contextual"
+  },
+  {
+    "prompt": "If you're implementing an AI agent with external tool access, how would you think about the relationship between function calling, MCP for tool integration, and the OWASP excessive agency vulnerability?",
+    "category": "ai-agents",
+    "difficulty": "advanced",
+    "keyConcepts": [
+      "tool integration",
+      "function calling",
+      "security threats",
+      "excessive agency",
+      "protocol standards"
+    ],
+    "mode": "contextual"
+  }
+]
