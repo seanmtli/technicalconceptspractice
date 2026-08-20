@@ -1,73 +1,71 @@
-# Technical Concepts Practice
+# DataPractice
 
-A mobile app for technical professionals to stay sharp on concepts and improve their ability to explain complex ideas clearly.
+A web app for **actually understanding** technical concepts — not memorizing them.
+You explain a concept out loud (or in writing), and an AI coach grades you against a
+concept rubric, tells you exactly what you missed, and links you to real articles
+from [ByteByteGo](https://blog.bytebytego.com) and
+[Technically](https://read.technically.dev) to go deeper. Spaced repetition (SM-2)
+brings weak concepts back until they stick.
 
-## Why This App?
+## Two practice modes
 
-Being able to clearly explain technical concepts is a crucial skill—whether you're in interviews, mentoring others, or just solidifying your own understanding. This app uses **active recall** and **spaced repetition** to help you practice explaining concepts in your own words, with AI-powered feedback to identify gaps in your understanding.
+- **Concept drilling** — "Explain what MCP is." Graded against the question's
+  key-concept rubric: can you explain X?
+- **Contextual practice** — "How does Docker relate to containerization?" Graded on
+  reasoning quality (accuracy, tradeoffs, practical grounding): can you connect and
+  apply X? Contextual questions come from a seeded bank *and* are generated live
+  from the concepts you've been missing.
 
-## How It Works
+Voice answers are the point — speaking forces real recall. Typing is always
+available as a fallback.
 
-1. **See a concept prompt** - e.g., "Explain the bias-variance tradeoff"
-2. **Explain it** - Type or speak your answer as if teaching someone
-3. **Get feedback** - AI evaluates your explanation, highlighting what you covered well and what you missed
-4. **Spaced repetition** - Concepts you struggle with come back sooner; mastered ones appear less frequently
+## Stack
 
-## Features
+- **Next.js** (App Router, TypeScript, Tailwind) — one deployable; API route
+  handlers keep all secrets server-side
+- **Supabase** — Postgres + auth, RLS on all per-user tables
+- **ElevenLabs Scribe** — speech-to-text
+- **OpenRouter** — evaluation/coaching LLM (models configurable via env)
 
-- **10-minute practice sessions** - Short, focused practice that fits into your day
-- **Voice or text input** - Speak your answer or type it out
-- **Strict AI grading** - No hand-holding; get honest feedback on gaps in your explanations
-- **Concept gap tracking** - See which concepts you consistently miss across questions
-- **7 categories** - Statistics, Machine Learning, Python/Pandas, SQL, A/B Testing, Data Visualization, Feature Engineering
-- **34 starter questions** - Pre-loaded question bank to get you started
-- **Generate new questions** - Use AI to create questions on specific topics
-
-## Tech Stack
-
-- React Native + Expo
-- TypeScript
-- SQLite (local storage)
-- Claude API (answer evaluation)
-- OpenAI Whisper API (voice transcription)
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18+
-- Expo CLI
-- iOS Simulator (Mac) or Android Emulator, or Expo Go on your phone
-
-### Installation
+## Setup
 
 ```bash
-# Clone the repo
-git clone https://github.com/seanmtli/technicalconceptspractice.git
-cd technicalconceptspractice
-
-# Install dependencies
 npm install
-
-# Start the app
-npx expo start
+cp .env.example .env   # fill in keys (see below)
+npm run seed           # load the question bank
+npm run dev
 ```
 
-### API Keys
+Environment variables (`.env`):
 
-You'll need to add your own API keys in the app's Settings screen:
+| Variable | Purpose |
+|---|---|
+| `OPENROUTER_API_KEY` | LLM calls (evaluation, generation, crawling) |
+| `OPENROUTER_EVAL_MODEL` | grading model (default: anthropic/claude-sonnet-4.5) |
+| `OPENROUTER_CHEAP_MODEL` | summarize/generate model (default: google/gemini-2.5-flash) |
+| `ELEVENLABS_API_KEY` | speech-to-text |
+| `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase client |
+| `SUPABASE_SERVICE_ROLE_KEY` | seed/crawl scripts only — never imported by app code |
+| `SUPABASE_DB_PASSWORD` | `supabase db push` migrations |
 
-1. **Claude API Key** (required) - Get one at [console.anthropic.com](https://console.anthropic.com)
-2. **OpenAI API Key** (optional, for voice input) - Get one at [platform.openai.com](https://platform.openai.com)
+## Scripts
 
-## Usage
+```bash
+npm run seed            # idempotent question-bank seed
+npm run crawl-sources   # crawl free ByteByteGo/Technically articles into the
+                        # sources table and link them to questions
+                        # (CRAWL_LIMIT=40 for a partial pass; resumable)
+npm test                # vitest (SM-2, queue interleave, LLM-response validation)
+```
 
-1. Open the app and go to **Settings** to add your Claude API key
-2. Return to **Home** and tap **Start Practice**
-3. Read the question and type/record your explanation
-4. Review the AI feedback and learn from gaps
-5. Continue until the 10-minute session ends or you've reviewed all due cards
+## Architecture notes
 
-## License
-
-MIT
+- `lib/srs.ts` — SM-2 scheduling, pure and unit-tested
+- `lib/queue.ts` — due-queue + mixed-mode interleave (4 drills : 1 contextual)
+- `lib/prompts.ts` — all LLM prompts; grading feedback length is proportional to
+  errors (terse praise for a 5, thorough correction for a 1)
+- `record_review()` (Postgres) — atomic writeback: review + schedule + concept
+  gaps + streak in one transaction
+- Per-user scheduling is lazy: a question with no `card_schedules` row is due now,
+  so new users need no setup
+- Design spec: `docs/superpowers/specs/2026-08-20-web-app-redesign-design.md`

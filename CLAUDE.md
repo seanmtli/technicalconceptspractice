@@ -4,60 +4,59 @@
 
 **NEVER commit API keys or secrets to the repository.**
 
-- Store secrets in `.env` file (already in `.gitignore`)
-- Use `.env.example` as a template for required variables
-- Access secrets via `Constants.expoConfig?.extra` from `expo-constants`
-- Current environment variables:
-  - `OPENROUTER_API_KEY` - API key for OpenRouter services
+- Store secrets in `.env` (gitignored); `.env.example` is the template
+- Server code reads secrets from `process.env` in API route handlers and scripts
+  only — never in client components, never behind `NEXT_PUBLIC_`
+- `SUPABASE_SERVICE_ROLE_KEY` is for `scripts/` only; app code uses the anon key
+  with RLS
 
 ## Git Workflow
 
 **Always commit and push changes after completing a feature or significant change.**
 
-When building a new feature:
 1. Implement the feature
-2. Run TypeScript compilation check (`npx tsc --noEmit`)
-3. Stage relevant files with `git add`
-4. Commit with a descriptive message following conventional commits:
-   - `feat:` for new features
-   - `fix:` for bug fixes
-   - `refactor:` for code refactoring
-   - `docs:` for documentation changes
-5. Push to remote with `git push`
+2. `npx tsc --noEmit` and `npm test` must pass
+3. Stage relevant files, commit with conventional-commit messages
+   (`feat:` / `fix:` / `refactor:` / `docs:`)
+4. Push to remote
 
 ## Project Overview
 
-This is a React Native (Expo) app that helps users **explain and apply** technical concepts rather than just memorize them.
+DataPractice is a Next.js web app that helps users **explain and apply** technical
+concepts rather than memorize them. Users answer by voice (preferred) or text; an
+LLM grades against a concept rubric and links source articles; SM-2 spaced
+repetition schedules review.
 
-**Key Philosophy:**
-- Focus on understanding, not rote memorization of syntax or definitions
-- Users explain concepts in their own words and receive AI-powered feedback
-- Covers data science, software fundamentals, and broader technical topics
-- Uses spaced repetition to reinforce deep understanding
+Two modes: **drill** (explain one concept, graded on key-concept coverage) and
+**contextual** (relate/apply concepts, graded on reasoning quality). Contextual
+questions come from the bank and from live generation off the user's concept gaps.
 
-## Key Directories
+## Key Layout
 
-- `src/types/` - TypeScript type definitions
-- `src/constants/` - App constants including category definitions
-- `src/data/` - Seed questions and content data
-- `src/services/` - Database, API, and utility services
-- `src/screens/` - React Native screen components
-- `src/components/` - Reusable UI components
+- `app/` — pages (`/`, `/login`, `/practice`) and API routes
+  (`/api/transcribe`, `/api/evaluate`, `/api/contextual`)
+- `lib/` — `srs.ts` (SM-2), `queue.ts` (due + interleave), `prompts.ts` (all LLM
+  prompts), `openrouter.ts` (LLM client), `elevenlabs.ts` (STT),
+  `types.ts`, `categories.ts`, `supabase/`
+- `scripts/` — `seed.ts`, `crawl-sources.ts`, `data/` (question bank source)
+- `supabase/migrations/` — schema; apply with
+  `supabase db push --linked -p "$SUPABASE_DB_PASSWORD"`
 
 ## Database
 
-- Uses Expo SQLite
-- Schema version tracked in `database.ts`
-- Migrations handled in `runMigrations()` function
-- Always bump `CURRENT_SCHEMA_VERSION` when adding migrations
+- Supabase Postgres, project ref `jmyrffyrllzurpbopfwr`
+- Shared bank (`questions`, `sources`): authenticated read-only; writes via
+  service-role scripts
+- Per-user tables (`card_schedules`, `review_records`, `concept_gaps`,
+  `user_stats`): RLS to own rows
+- All post-answer writes go through the `record_review()` Postgres function —
+  keep it atomic; don't add sequential client-side writes
+- After schema changes: new migration file + `supabase db push` +
+  `supabase gen types typescript --linked > lib/supabase/database.types.ts`
 
 ## Adding New Categories
 
-When adding new question categories:
-1. Add to `Category` type in `src/types/index.ts`
-2. Add `CategoryInfo` entry in `src/constants/categories.ts`
-3. Update `VALID_CATEGORIES` array in `src/services/database.ts`
-4. Update `ALL_CATEGORIES` array in `src/services/database.ts`
-5. Update `DEFAULT_DIFFICULTIES` in `src/services/database.ts`
-6. Update fallback difficulties in `src/screens/OnboardingChatScreen.tsx`
-7. Update fallback difficulties in `src/services/onboardingApi.ts`
+1. Add to `Category` type in `lib/types.ts`
+2. Add a `CategoryInfo` entry in `lib/categories.ts`
+
+(Category values are plain text in Postgres — no migration needed.)
