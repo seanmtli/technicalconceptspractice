@@ -44,6 +44,35 @@ function Practice() {
   const sessionConceptsRef = useRef<string[]>([]);
   const answerTypeRef = useRef<'audio' | 'text'>('text');
 
+  // ---- slot transitions ----
+  const enterSlot = useCallback(async (queue: QueueSlot[], index: number) => {
+    if (index >= queue.length) {
+      setState({ status: 'session_complete' });
+      return;
+    }
+    setSlotIndex(index);
+    setTyped('');
+    const slot = queue[index];
+    if (slot.kind === 'card') {
+      setState({ status: 'answering', card: { question: slot.question, ephemeral: false } });
+      return;
+    }
+    // generate slot: compose a contextual question from this session's concepts
+    setState({ status: 'loading' });
+    try {
+      const res = await fetch('/api/contextual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recentConcepts: sessionConceptsRef.current.slice(-10) }),
+      });
+      if (!res.ok) throw new Error('generation failed');
+      const { question } = await res.json();
+      setState({ status: 'answering', card: { question, ephemeral: true } });
+    } catch {
+      enterSlot(queue, index + 1); // skip the slot; drills continue
+    }
+  }, []);
+
   // ---- session setup ----
   useEffect(() => {
     let cancelled = false;
@@ -76,35 +105,6 @@ function Practice() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // ---- slot transitions ----
-  const enterSlot = useCallback(async (queue: QueueSlot[], index: number) => {
-    if (index >= queue.length) {
-      setState({ status: 'session_complete' });
-      return;
-    }
-    setSlotIndex(index);
-    setTyped('');
-    const slot = queue[index];
-    if (slot.kind === 'card') {
-      setState({ status: 'answering', card: { question: slot.question, ephemeral: false } });
-      return;
-    }
-    // generate slot: compose a contextual question from this session's concepts
-    setState({ status: 'loading' });
-    try {
-      const res = await fetch('/api/contextual', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recentConcepts: sessionConceptsRef.current.slice(-10) }),
-      });
-      if (!res.ok) throw new Error('generation failed');
-      const { question } = await res.json();
-      setState({ status: 'answering', card: { question, ephemeral: true } });
-    } catch {
-      enterSlot(queue, index + 1); // skip the slot; drills continue
-    }
   }, []);
 
   const next = useCallback(() => enterSlot(slots, slotIndex + 1), [enterSlot, slots, slotIndex]);
