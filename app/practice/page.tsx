@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -45,7 +45,7 @@ function Practice() {
   const answerTypeRef = useRef<'audio' | 'text'>('text');
 
   // ---- slot transitions ----
-  const enterSlot = useCallback(async (queue: QueueSlot[], index: number) => {
+  async function enterSlot(queue: QueueSlot[], index: number) {
     if (index >= queue.length) {
       setState({ status: 'session_complete' });
       return;
@@ -71,7 +71,7 @@ function Practice() {
     } catch {
       enterSlot(queue, index + 1); // skip the slot; drills continue
     }
-  }, []);
+  }
 
   // ---- session setup ----
   useEffect(() => {
@@ -107,7 +107,7 @@ function Practice() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const next = useCallback(() => enterSlot(slots, slotIndex + 1), [enterSlot, slots, slotIndex]);
+  const next = () => enterSlot(slots, slotIndex + 1);
 
   // ---- recording ----
   async function startRecording(card: PracticeCard) {
